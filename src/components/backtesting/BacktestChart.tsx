@@ -82,6 +82,7 @@ const fetchKlines = async (symbol: string, interval: string, startTimeMs: number
 const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startDate, initialBalance, onStateChange }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetRef = useRef<any>(null);
+  const scriptRef = useRef<HTMLScriptElement | null>(null);
   const { toast } = useToast();
 
   // Replay and trading state
@@ -120,31 +121,54 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     script.src = 'https://s3.tradingview.com/tv.js';
     script.async = true;
     script.onload = () => {
-      if (typeof (window as any).TradingView !== 'undefined') {
-        widgetRef.current = new (window as any).TradingView.widget({
-          container_id: 'tv_chart_container',
-          autosize: true,
-          symbol: `BINANCE:${mappedSymbol}`,
-          interval: mappedTf,
-          timezone: 'Etc/UTC',
-          theme: 'dark',
-          style: '1',
-          locale: 'en',
-          toolbar_bg: '#0a0a0a',
-          enable_publishing: false,
-          hide_side_toolbar: false,
-          allow_symbol_change: true,
-          studies: []
-        });
+      if (typeof (window as any).TradingView !== 'undefined' && containerRef.current) {
+        try {
+          widgetRef.current = new (window as any).TradingView.widget({
+            container_id: 'tv_chart_container',
+            autosize: true,
+            symbol: `BINANCE:${mappedSymbol}`,
+            interval: mappedTf,
+            timezone: 'Etc/UTC',
+            theme: 'dark',
+            style: '1',
+            locale: 'en',
+            toolbar_bg: '#0a0a0a',
+            enable_publishing: false,
+            hide_side_toolbar: false,
+            allow_symbol_change: true,
+            studies: []
+          });
+        } catch (e) {
+          console.error('TradingView widget initialization error:', e);
+        }
       }
     };
+    
+    scriptRef.current = script;
     document.head.appendChild(script);
 
     return () => {
-      if (widgetRef.current && widgetRef.current.remove) {
-        widgetRef.current.remove();
+      // Cleanup widget
+      if (widgetRef.current) {
+        try {
+          if (typeof widgetRef.current.remove === 'function') {
+            widgetRef.current.remove();
+          }
+        } catch (e) {
+          console.error('Widget cleanup error:', e);
+        }
+        widgetRef.current = null;
       }
-      document.head.removeChild(script);
+      
+      // Cleanup script
+      if (scriptRef.current && scriptRef.current.parentNode) {
+        try {
+          scriptRef.current.parentNode.removeChild(scriptRef.current);
+        } catch (e) {
+          console.error('Script cleanup error:', e);
+        }
+        scriptRef.current = null;
+      }
     };
   }, [mappedSymbol, mappedTf]);
 
