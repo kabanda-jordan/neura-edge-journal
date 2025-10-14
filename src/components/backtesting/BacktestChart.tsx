@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createChart, ISeriesApi, Time, CandlestickSeriesOptions, CrosshairMode } from "lightweight-charts";
+import { createChart, ColorType, CrosshairMode, CandlestickSeries } from "lightweight-charts";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack } from "lucide-react";
@@ -82,7 +82,7 @@ const fetchKlines = async (symbol: string, interval: string, startTimeMs: number
 
 const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startDate, initialBalance, onStateChange }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const seriesRef = useRef<any>(null);
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
   const { toast } = useToast();
 
@@ -101,9 +101,9 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const [trades, setTrades] = useState<Trade[]>([]);
 
   // Price lines
-  const entryLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(null);
-  const tpLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(null);
-  const slLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(null);
+  const entryLineRef = useRef<any>(null);
+  const tpLineRef = useRef<any>(null);
+  const slLineRef = useRef<any>(null);
 
   // Dragging
   const dragTargetRef = useRef<'tp' | 'sl' | null>(null);
@@ -132,7 +132,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       width: containerRef.current.clientWidth,
       height: 600,
       layout: {
-        background: { type: 'solid', color: 'transparent' },
+        background: { type: ColorType.Solid, color: 'transparent' },
         textColor: 'hsl(215 20% 65%)',
       },
       grid: {
@@ -144,9 +144,14 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       timeScale: { rightOffset: 2, secondsVisible: true, borderVisible: false },
     });
 
-    const series = chart.addCandlestickSeries({
-      upColor: '#22c55e', downColor: '#ef4444', borderDownColor: '#ef4444', borderUpColor: '#22c55e', wickDownColor: '#ef4444', wickUpColor: '#22c55e',
-    } as CandlestickSeriesOptions);
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: '#22c55e', 
+      downColor: '#ef4444', 
+      borderDownColor: '#ef4444', 
+      borderUpColor: '#22c55e', 
+      wickDownColor: '#ef4444', 
+      wickUpColor: '#22c55e',
+    });
 
     chartRef.current = chart;
     seriesRef.current = series;
