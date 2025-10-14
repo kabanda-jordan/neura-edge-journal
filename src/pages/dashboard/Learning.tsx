@@ -84,9 +84,25 @@ export const Learning = () => {
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" className="w-full mt-2 border-primary/30 hover:bg-primary/10">
-                  View All Lessons
-                  <ExternalLink className="w-4 h-4 ml-2" />
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-2 border-primary/30 hover:bg-primary/10"
+                  asChild
+                >
+                  <a 
+                    href={
+                      category.title === "Trading Psychology" 
+                        ? "https://www.youtube.com/watch?v=cdsDagmrnLI"
+                        : category.title === "Technical Analysis"
+                        ? "https://www.youtube.com/watch?v=pWkwxYR0eZY"
+                        : "https://www.youtube.com/watch?v=qN0-ltRAcV4"
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View All Lessons
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </a>
                 </Button>
               </CardContent>
             </Card>
@@ -111,9 +127,15 @@ export const Learning = () => {
             Discover proven techniques for documenting your trades, analyzing patterns, and 
             continuously improving your trading strategy through journaling.
           </p>
-          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-            Start Learning
-            <ExternalLink className="w-4 h-4 ml-2" />
+          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90" asChild>
+            <a 
+              href="https://www.youtube.com/watch?v=gW45JtNcFHc"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Start Learning
+              <ExternalLink className="w-4 h-4 ml-2" />
+            </a>
           </Button>
         </CardContent>
       </Card>
