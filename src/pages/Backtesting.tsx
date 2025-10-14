@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Settings, DollarSign, Lock, Crown } from "lucide-react";
 import BacktestChart, { Trade, PositionType } from "@/components/backtesting/BacktestChart";
+import { supabase } from "@/integrations/supabase/client";
 
 const CRYPTO_PAIRS = [
   "BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "XRPUSDT", "SOLUSDT", "DOGEUSDT", "DOTUSDT", "MATICUSDT", "AVAXUSDT"
@@ -22,6 +25,8 @@ const STOCK_SYMBOLS = [
 ];
 
 const Backtesting = () => {
+  const navigate = useNavigate();
+  const [hasProAccess, setHasProAccess] = useState<boolean | null>(null);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [position, setPosition] = useState<PositionType>(null);
@@ -30,6 +35,29 @@ const Backtesting = () => {
   const [balance, setBalance] = useState(10000);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [speed, setSpeed] = useState(1);
+
+  useEffect(() => {
+    const checkProAccess = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setHasProAccess(false);
+        return;
+      }
+
+      // Check if user has a verified Pro payment
+      const { data: payments } = await supabase
+        .from("payment_submissions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "verified")
+        .eq("plan_name", "Pro");
+
+      setHasProAccess(payments && payments.length > 0);
+    };
+
+    checkProAccess();
+  }, []);
 
   const [settings, setSettings] = useState({
     symbol: "BTCUSDT",
@@ -44,6 +72,85 @@ const Backtesting = () => {
   const winRate = totalTrades > 0 ? (winningTrades / totalTrades * 100).toFixed(1) : '0';
   const avgWin = trades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0) / (winningTrades || 1);
   const avgLoss = trades.filter(t => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0) / ((totalTrades - winningTrades) || 1);
+
+  // Show loading state while checking access
+  if (hasProAccess === null) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-12 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Show upgrade prompt for non-Pro users
+  if (!hasProAccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-12">
+          <div className="container mx-auto px-4">
+            <div className="max-w-2xl mx-auto text-center">
+              <Card className="glass-card border-primary/20 p-8">
+                <div className="mb-6">
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                    <Lock className="w-10 h-10 text-primary" />
+                  </div>
+                  <h1 className="text-4xl font-bold mb-4">
+                    <span className="text-gradient">Pro Feature</span>
+                  </h1>
+                  <p className="text-xl text-muted-foreground mb-8">
+                    Backtesting is exclusively available for Pro plan members
+                  </p>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-start gap-3 text-left p-4 rounded-lg bg-primary/5">
+                    <Crown className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold">Unlimited Backtesting</p>
+                      <p className="text-sm text-muted-foreground">Test strategies on any symbol and timeframe</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 text-left p-4 rounded-lg bg-primary/5">
+                    <Crown className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold">Advanced Analytics</p>
+                      <p className="text-sm text-muted-foreground">Track performance with detailed statistics</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 text-left p-4 rounded-lg bg-primary/5">
+                    <Crown className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold">All Pro Features</p>
+                      <p className="text-sm text-muted-foreground">AI insights, unlimited trades, and more</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => navigate("/pricing")}
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background font-semibold"
+                >
+                  <Crown className="w-5 h-5 mr-2" />
+                  Upgrade to Pro - Only $3.99/month
+                </Button>
+
+                <p className="text-sm text-muted-foreground mt-4">
+                  Pay directly with crypto • Instant access
+                </p>
+              </Card>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

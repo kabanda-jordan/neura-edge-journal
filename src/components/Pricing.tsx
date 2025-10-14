@@ -34,7 +34,7 @@ const plans = [
       "Backtesting tools",
       "Priority support",
     ],
-    cta: "Start Free Trial",
+    cta: "Start Now",
     popular: true,
   },
 ];
@@ -60,7 +60,7 @@ export const Pricing = () => {
             Simple, <span className="text-gradient">Transparent Pricing</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Choose the perfect plan for your trading journey. All plans include a 14-day free trial.
+            Choose the perfect plan for your trading journey. Pay directly with crypto.
           </p>
         </div>
 
@@ -103,27 +103,24 @@ export const Pricing = () => {
                 </ul>
                 
                 <div className="space-y-3">
-                  <Link to="/auth" className="block">
+                  {plan.popular ? (
                     <Button
-                      className={`w-full ${
-                        plan.popular
-                          ? "bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background"
-                          : "border-primary/30 hover:bg-primary/10"
-                      }`}
-                      variant={plan.popular ? "default" : "outline"}
+                      onClick={() => handleCryptoPayment(plan)}
+                      className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background"
                     >
+                      <Wallet className="w-4 h-4 mr-2" />
                       {plan.cta}
                     </Button>
-                  </Link>
-                  
-                  <Button
-                    onClick={() => handleCryptoPayment(plan)}
-                    variant="outline"
-                    className="w-full border-primary/20 hover:border-primary/40 hover:bg-primary/5 group transition-all"
-                  >
-                    <Wallet className="w-4 h-4 mr-2 group-hover:text-primary transition-colors" />
-                    Pay with Crypto
-                  </Button>
+                  ) : (
+                    <Link to="/auth" className="block">
+                      <Button
+                        variant="outline"
+                        className="w-full border-primary/30 hover:bg-primary/10"
+                      >
+                        {plan.cta}
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -131,7 +128,7 @@ export const Pricing = () => {
         </div>
 
         <p className="text-center text-muted-foreground mt-12 text-sm">
-          All plans include 14-day free trial. No credit card required. Cancel anytime.
+          Instant activation • Direct crypto payments • No hidden fees
         </p>
       </div>
 
