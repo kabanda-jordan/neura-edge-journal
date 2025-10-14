@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack, Activity } from "lucide-react";
+import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack, Activity, TrendingUpDown } from "lucide-react";
 import { createChart, IChartApi, ISeriesApi, ColorType, CandlestickSeries, LineSeries, IPriceLine, LineData } from 'lightweight-charts';
+import { ChartDrawingTools } from "./ChartDrawingTools";
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -89,6 +90,11 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const slLineRef = useRef<IPriceLine | null>(null);
   const smaSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
+  const rsiSeriesRef = useRef<any>(null);
+  const macdSeriesRef = useRef<any>(null);
+  const macdSignalSeriesRef = useRef<any>(null);
+  const bollingerUpperRef = useRef<any>(null);
+  const bollingerLowerRef = useRef<any>(null);
   const { toast } = useToast();
 
   // Replay and trading state
@@ -114,6 +120,14 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const [smaPeriod, setSmaPeriod] = useState(20);
   const [showEMA, setShowEMA] = useState(false);
   const [emaPeriod, setEmaPeriod] = useState(12);
+  const [showRSI, setShowRSI] = useState(false);
+  const [rsiPeriod, setRsiPeriod] = useState(14);
+  const [showMACD, setShowMACD] = useState(false);
+  const [showBollinger, setShowBollinger] = useState(false);
+  const [bollingerPeriod, setBollingerPeriod] = useState(20);
+  
+  // Drawing tools
+  const [showDrawingTools, setShowDrawingTools] = useState(false);
 
   const mappedSymbol = useMemo(() => {
     const s = symbol.replace(/[^a-zA-Z]/g, '').toUpperCase();
@@ -217,10 +231,26 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       visible: false,
     });
 
+    const bollingerUpper = chart.addSeries(LineSeries, {
+      color: '#a855f7',
+      lineWidth: 1,
+      title: 'BB Upper',
+      visible: false,
+    });
+
+    const bollingerLower = chart.addSeries(LineSeries, {
+      color: '#a855f7',
+      lineWidth: 1,
+      title: 'BB Lower',
+      visible: false,
+    });
+
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     smaSeriesRef.current = smaSeries;
     emaSeriesRef.current = emaSeries;
+    bollingerUpperRef.current = bollingerUpper;
+    bollingerLowerRef.current = bollingerLower;
 
     // Handle resize
     const handleResize = () => {
@@ -262,6 +292,44 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     return result;
   };
 
+  const calculateRSI = (data: Candle[], period: number): LineData[] => {
+    const result: LineData[] = [];
+    const changes: number[] = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      changes.push(data[i].close - data[i - 1].close);
+    }
+    
+    for (let i = period; i < changes.length; i++) {
+      const recentChanges = changes.slice(i - period, i);
+      const gains = recentChanges.filter(c => c > 0).reduce((a, b) => a + b, 0) / period;
+      const losses = Math.abs(recentChanges.filter(c => c < 0).reduce((a, b) => a + b, 0)) / period;
+      const rs = gains / (losses || 1);
+      const rsi = 100 - (100 / (1 + rs));
+      result.push({ time: data[i + 1].time as any, value: rsi });
+    }
+    
+    return result;
+  };
+
+  const calculateBollinger = (data: Candle[], period: number): { upper: LineData[], lower: LineData[] } => {
+    const sma = calculateSMA(data, period);
+    const upper: LineData[] = [];
+    const lower: LineData[] = [];
+    
+    for (let i = period - 1; i < data.length; i++) {
+      const slice = data.slice(i - period + 1, i + 1);
+      const mean = slice.reduce((acc, c) => acc + c.close, 0) / period;
+      const variance = slice.reduce((acc, c) => acc + Math.pow(c.close - mean, 2), 0) / period;
+      const stdDev = Math.sqrt(variance);
+      
+      upper.push({ time: data[i].time as any, value: mean + (stdDev * 2) });
+      lower.push({ time: data[i].time as any, value: mean - (stdDev * 2) });
+    }
+    
+    return { upper, lower };
+  };
+
   // Update chart with visible data based on idx
   useEffect(() => {
     if (!candleSeriesRef.current || data.length === 0) return;
@@ -287,12 +355,18 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       const emaData = calculateEMA(data.slice(0, idx), emaPeriod);
       emaSeriesRef.current.setData(emaData);
     }
+
+    if (showBollinger && bollingerUpperRef.current && bollingerLowerRef.current) {
+      const bollingerData = calculateBollinger(data.slice(0, idx), bollingerPeriod);
+      bollingerUpperRef.current.setData(bollingerData.upper);
+      bollingerLowerRef.current.setData(bollingerData.lower);
+    }
     
     // Auto-scroll to latest candle only during playback
     if (isPlaying && chartRef.current && visibleData.length > 0) {
       chartRef.current.timeScale().scrollToPosition(3, false);
     }
-  }, [idx, data, showSMA, smaPeriod, showEMA, emaPeriod]);
+  }, [idx, data, showSMA, smaPeriod, showEMA, emaPeriod, showBollinger, bollingerPeriod]);
 
   // Reset state on symbol/timeframe change
   useEffect(() => {
@@ -339,7 +413,13 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     if (emaSeriesRef.current) {
       emaSeriesRef.current.applyOptions({ visible: showEMA });
     }
-  }, [showSMA, showEMA]);
+    if (bollingerUpperRef.current) {
+      bollingerUpperRef.current.applyOptions({ visible: showBollinger });
+    }
+    if (bollingerLowerRef.current) {
+      bollingerLowerRef.current.applyOptions({ visible: showBollinger });
+    }
+  }, [showSMA, showEMA, showBollinger]);
 
   // Update TP/SL price lines on chart
   useEffect(() => {
@@ -576,7 +656,14 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
 
   return (
     <div className="relative w-full rounded-lg bg-card overflow-hidden">
-      <div ref={containerRef} className="w-full h-[600px]" />
+      <div ref={containerRef} className="w-full h-[600px] relative">
+        {showDrawingTools && containerRef.current && (
+          <ChartDrawingTools 
+            width={containerRef.current.clientWidth} 
+            height={600}
+          />
+        )}
+      </div>
 
       {/* Overlay controls inside chart area */}
       <div className="absolute inset-0 z-10 flex flex-col justify-between p-3 pointer-events-none">
@@ -607,8 +694,8 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
         </div>
 
         {/* Indicators panel */}
-        <div className="pointer-events-auto bg-background/80 backdrop-blur rounded px-3 py-2 border border-border">
-          <div className="flex items-center gap-3">
+        <div className="pointer-events-auto bg-background/80 backdrop-blur rounded px-3 py-2 border border-border max-w-2xl">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs font-semibold">Indicators:</span>
@@ -655,6 +742,36 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
                 />
               )}
             </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showBollinger} 
+                  onChange={(e) => setShowBollinger(e.target.checked)}
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-purple-500">Bollinger</span>
+              </label>
+              {showBollinger && (
+                <Input 
+                  type="number" 
+                  value={bollingerPeriod} 
+                  onChange={(e) => setBollingerPeriod(parseInt(e.target.value) || 20)}
+                  className="w-16 h-6 text-xs"
+                  min="2"
+                  max="200"
+                />
+              )}
+            </div>
+            <Button
+              variant={showDrawingTools ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowDrawingTools(!showDrawingTools)}
+              className="h-7"
+            >
+              <TrendingUpDown className="w-4 h-4 mr-1" />
+              Drawing Tools
+            </Button>
           </div>
         </div>
       </div>
