@@ -176,11 +176,25 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       }
     };
 
-    // Mouse event handlers for dragging TP/SL lines
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+    };
+  }, [symbol, timeframe, startDate]);
+
+  // Handle dragging TP/SL lines
+  useEffect(() => {
+    if (!chartRef.current || !candlestickSeriesRef.current) return;
+
+    const chart = chartRef.current;
+    const candlestickSeries = candlestickSeriesRef.current;
+
     const handleMouseDown = (param: any) => {
       if (!position || !param.point) return;
       
-      const price = candlestickSeriesRef.current?.coordinateToPrice(param.point.y);
+      const price = candlestickSeries.coordinateToPrice(param.point.y);
       if (!price) return;
       
       const threshold = Math.abs(currentPrice * 0.005); // 0.5% threshold
@@ -195,7 +209,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     const handleMouseMove = (param: any) => {
       if (!isDraggingRef.current || !param.point) return;
       
-      const price = candlestickSeriesRef.current?.coordinateToPrice(param.point.y);
+      const price = candlestickSeries.coordinateToPrice(param.point.y);
       if (!price) return;
       
       if (isDraggingRef.current === 'tp') {
@@ -216,15 +230,11 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     chartElement?.addEventListener('mouseup', handleMouseUp);
     chartElement?.addEventListener('mouseleave', handleMouseUp);
 
-    window.addEventListener('resize', handleResize);
-
     return () => {
-      window.removeEventListener('resize', handleResize);
       chartElement?.removeEventListener('mouseup', handleMouseUp);
       chartElement?.removeEventListener('mouseleave', handleMouseUp);
-      chart.remove();
     };
-  }, [symbol, timeframe, startDate, position, currentPrice, tp, sl]);
+  }, [position, currentPrice, tp, sl]);
 
   // Calculate SMA
   const calculateSMA = (data: CandlestickData[], period: number) => {
