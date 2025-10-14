@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createChart, ColorType, CrosshairMode, CandlestickSeries } from "lightweight-charts";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack } from "lucide-react";
@@ -82,8 +81,7 @@ const fetchKlines = async (symbol: string, interval: string, startTimeMs: number
 
 const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startDate, initialBalance, onStateChange }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const seriesRef = useRef<any>(null);
-  const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
+  const widgetRef = useRef<any>(null);
   const { toast } = useToast();
 
   // Replay and trading state
@@ -100,77 +98,58 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const [balance, setBalance] = useState<number>(initialBalance);
   const [trades, setTrades] = useState<Trade[]>([]);
 
-  // Price lines
-  const entryLineRef = useRef<any>(null);
-  const tpLineRef = useRef<any>(null);
-  const slLineRef = useRef<any>(null);
-
-  // Dragging
-  const dragTargetRef = useRef<'tp' | 'sl' | null>(null);
-  const isMouseDownRef = useRef(false);
-
-  const mappedSymbol = useMemo(() => mapSymbolToBinance(symbol), [symbol]);
-  const mappedTf = useMemo(() => mapTimeframe(timeframe), [timeframe]);
-  const startMs = useMemo(() => new Date(startDate).getTime(), [startDate]);
+  const mappedSymbol = useMemo(() => {
+    const s = symbol.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    return s.endsWith('USDT') ? s : s.endsWith('USD') ? s : s + 'USD';
+  }, [symbol]);
+  
+  const mappedTf = useMemo(() => {
+    const tfMap: Record<string, string> = { '1': '1', '5': '5', '15': '15', '60': '60', '240': '240', 'D': 'D' };
+    return tfMap[timeframe] || '60';
+  }, [timeframe]);
 
   const currentCandle = data[Math.max(0, Math.min(idx - 1, data.length - 1))];
   const currentPrice = currentCandle?.close ?? 0;
   const currentTime = currentCandle?.time ?? Math.floor(new Date(startDate).getTime() / 1000);
 
-  // Init chart
+  // Init TradingView chart
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Cleanup existing chart
-    if (chartRef.current) {
-      chartRef.current.remove();
-      chartRef.current = null;
-      seriesRef.current = null;
-    }
-
-    const chart = createChart(containerRef.current, {
-      width: containerRef.current.clientWidth,
-      height: 600,
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'hsl(215 20% 65%)',
-      },
-      grid: {
-        vertLines: { color: 'hsl(215 16% 22%)' },
-        horzLines: { color: 'hsl(215 16% 22%)' },
-      },
-      crosshair: { mode: CrosshairMode.Magnet },
-      rightPriceScale: { borderVisible: false },
-      timeScale: { rightOffset: 2, secondsVisible: true, borderVisible: false },
-    });
-
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e', 
-      downColor: '#ef4444', 
-      borderDownColor: '#ef4444', 
-      borderUpColor: '#22c55e', 
-      wickDownColor: '#ef4444', 
-      wickUpColor: '#22c55e',
-    });
-
-    chartRef.current = chart;
-    seriesRef.current = series;
-
-    const handleResize = () => {
-      if (!containerRef.current || !chartRef.current) return;
-      chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/tv.js';
+    script.async = true;
+    script.onload = () => {
+      if (typeof (window as any).TradingView !== 'undefined') {
+        widgetRef.current = new (window as any).TradingView.widget({
+          container_id: 'tv_chart_container',
+          autosize: true,
+          symbol: `BINANCE:${mappedSymbol}`,
+          interval: mappedTf,
+          timezone: 'Etc/UTC',
+          theme: 'dark',
+          style: '1',
+          locale: 'en',
+          toolbar_bg: '#0a0a0a',
+          enable_publishing: false,
+          hide_side_toolbar: false,
+          allow_symbol_change: true,
+          studies: []
+        });
+      }
     };
+    document.head.appendChild(script);
 
-    window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
+      if (widgetRef.current && widgetRef.current.remove) {
+        widgetRef.current.remove();
+      }
+      document.head.removeChild(script);
     };
-  }, [mappedSymbol, mappedTf, startMs]);
+  }, [mappedSymbol, mappedTf]);
 
-  // Load data
+  // Initialize replay state
   useEffect(() => {
-    let cancelled = false;
     setIsPlaying(false);
     setIdx(1);
     setTrades([]);
@@ -179,110 +158,46 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     setTp(null);
     setSl(null);
     setBalance(initialBalance);
+    setData([]);
+    
+    toast({ title: 'Chart Ready', description: `${mappedSymbol} • Interval: ${mappedTf}` });
+  }, [mappedSymbol, mappedTf, initialBalance]);
 
-    (async () => {
-      try {
-        const klines = await fetchKlines(mappedSymbol, mappedTf, startMs, 2000);
-        if (cancelled) return;
-        setData(klines);
-        if (seriesRef.current) {
-          seriesRef.current.setData(klines.slice(0, 1) as any);
-          chartRef.current?.timeScale().fitContent();
-        }
-        toast({ title: 'Loaded historical data', description: `${mappedSymbol} • ${mappedTf} • ${new Date(startMs).toLocaleDateString()}` });
-      } catch (e) {
-        console.error(e);
-        toast({ title: 'Data Error', description: 'Failed to load historical candles', variant: 'destructive' });
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [mappedSymbol, mappedTf, startMs, initialBalance]);
-
-  // Replay timer
+  // Replay timer (simplified for TradingView)
   useEffect(() => {
-    if (!isPlaying || data.length === 0) return;
+    if (!isPlaying) return;
     const stepMs = Math.max(100, 800 / speed);
     timerRef.current = window.setInterval(() => {
-      setIdx(prev => {
-        const next = Math.min(prev + 1, data.length);
-        if (seriesRef.current) {
-          seriesRef.current.setData(data.slice(0, next) as any);
-        }
-        return next;
-      });
+      setIdx(prev => prev + 1);
     }, stepMs);
 
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, [isPlaying, speed, data]);
+  }, [isPlaying, speed]);
 
-  // Update price lines and auto-close on TP/SL
+  // Auto-close on TP/SL (simplified simulation)
   useEffect(() => {
-    if (!seriesRef.current) return;
-
-    // Update price lines visuals
-    if (entryPrice != null) {
-      if (!entryLineRef.current) {
-        entryLineRef.current = seriesRef.current.createPriceLine({ price: entryPrice, color: '#60a5fa', lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: 'ENTRY' });
-      } else {
-        seriesRef.current.removePriceLine(entryLineRef.current);
-        entryLineRef.current = seriesRef.current.createPriceLine({ price: entryPrice, color: '#60a5fa', lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: 'ENTRY' });
-      }
-    } else if (entryLineRef.current) {
-      seriesRef.current.removePriceLine(entryLineRef.current);
-      entryLineRef.current = null;
-    }
-
+    if (!position || entryPrice == null) return;
+    
+    // Simulate price movement
+    const simulatedPrice = currentPrice + (Math.random() - 0.5) * currentPrice * 0.001;
+    
     if (tp != null) {
-      if (!tpLineRef.current) {
-        tpLineRef.current = seriesRef.current.createPriceLine({ price: tp, color: '#22c55e', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'TP' });
-      } else {
-        seriesRef.current.removePriceLine(tpLineRef.current);
-        tpLineRef.current = seriesRef.current.createPriceLine({ price: tp, color: '#22c55e', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'TP' });
-      }
-    } else if (tpLineRef.current) {
-      seriesRef.current.removePriceLine(tpLineRef.current);
-      tpLineRef.current = null;
-    }
-
-    if (sl != null) {
-      if (!slLineRef.current) {
-        slLineRef.current = seriesRef.current.createPriceLine({ price: sl, color: '#ef4444', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'SL' });
-      } else {
-        seriesRef.current.removePriceLine(slLineRef.current);
-        slLineRef.current = seriesRef.current.createPriceLine({ price: sl, color: '#ef4444', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'SL' });
-      }
-    } else if (slLineRef.current) {
-      seriesRef.current.removePriceLine(slLineRef.current);
-      slLineRef.current = null;
-    }
-  }, [entryPrice, tp, sl]);
-
-  // Auto-close logic when candle completes
-  useEffect(() => {
-    if (!position || entryPrice == null || data.length === 0) return;
-    const c = currentCandle;
-    if (!c) return;
-
-    // check tp/sl against candle range
-    if (tp != null) {
-      if ((position === 'long' && c.high >= tp) || (position === 'short' && c.low <= tp)) {
+      if ((position === 'long' && simulatedPrice >= tp) || (position === 'short' && simulatedPrice <= tp)) {
         closePosition(tp);
         return;
       }
     }
     if (sl != null) {
-      if ((position === 'long' && c.low <= sl) || (position === 'short' && c.high >= sl)) {
+      if ((position === 'long' && simulatedPrice <= sl) || (position === 'short' && simulatedPrice >= sl)) {
         closePosition(sl);
         return;
       }
     }
-    // otherwise unrealized pnl only
     publishState();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx]);
+
 
   // Publish state up
   const publishState = () => {
@@ -302,53 +217,8 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     });
   };
 
-  useEffect(() => { publishState(); }, [currentPrice, currentTime, position, entryPrice, balance, trades, speed]);
+  useEffect(() => { publishState(); }, [currentPrice, position, entryPrice, balance, trades, speed]);
 
-  // Dragging TP/SL with mouse
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || !chartRef.current || !seriesRef.current) return;
-
-    const series = seriesRef.current;
-    const priceScale = chartRef.current.priceScale('right');
-
-    const onMouseDown = (e: MouseEvent) => {
-      isMouseDownRef.current = true;
-      if (!series || !chartRef.current) return;
-      const rect = el.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const priceAtY = series.coordinateToPrice(y);
-      if (priceAtY == null) return;
-      if (tp != null && Math.abs(tp - priceAtY) / priceAtY < 0.002) {
-        dragTargetRef.current = 'tp';
-      } else if (sl != null && Math.abs(sl - priceAtY) / priceAtY < 0.002) {
-        dragTargetRef.current = 'sl';
-      }
-    };
-    const onMouseUp = () => {
-      isMouseDownRef.current = false;
-      dragTargetRef.current = null;
-    };
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isMouseDownRef.current || !dragTargetRef.current) return;
-      const rect = el.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const priceAtY = series.coordinateToPrice(y);
-      if (priceAtY == null) return;
-      if (dragTargetRef.current === 'tp') setTp(Number(priceAtY));
-      if (dragTargetRef.current === 'sl') setSl(Number(priceAtY));
-    };
-
-    el.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mouseup', onMouseUp);
-    window.addEventListener('mousemove', onMouseMove);
-
-    return () => {
-      el.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mouseup', onMouseUp);
-      window.removeEventListener('mousemove', onMouseMove);
-    };
-  }, [tp, sl]);
 
   // Trading actions
   const openLong = () => {
@@ -386,22 +256,15 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
 
   // Replay controls
   const togglePlay = () => setIsPlaying(p => !p);
-  const reset = () => { setIsPlaying(false); setIdx(1); if (seriesRef.current) seriesRef.current.setData(data.slice(0, 1) as any); };
-  const skipForward = () => setIdx(v => Math.min(v + 30, data.length));
+  const reset = () => { setIsPlaying(false); setIdx(1); };
+  const skipForward = () => setIdx(v => v + 30);
   const skipBack = () => setIdx(v => Math.max(v - 30, 1));
   const incSpeed = () => setSpeed(s => Math.min(s * 2, 16));
   const decSpeed = () => setSpeed(s => Math.max(s / 2, 0.5));
 
-  // When idx changes, update series
-  useEffect(() => {
-    if (!seriesRef.current) return;
-    seriesRef.current.setData(data.slice(0, idx) as any);
-    chartRef.current?.timeScale().scrollToPosition(1, true);
-  }, [idx, data]);
-
   return (
     <div className="relative w-full rounded-lg bg-card">
-      <div ref={containerRef} className="w-full h-[600px] rounded-lg" />
+      <div id="tv_chart_container" ref={containerRef} className="w-full h-[600px] rounded-lg" />
 
       {/* Overlay controls inside chart area */}
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3">
