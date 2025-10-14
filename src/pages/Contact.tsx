@@ -77,7 +77,7 @@ const Contact = () => {
                 </CardHeader>
                 <CardContent>
                   <a 
-                    href="https://discord.com/channels/1427653022196043787/1427653022711812191"
+                    href="https://discord.gg/UbkHGMqTp4"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline"
