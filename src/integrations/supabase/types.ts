@@ -128,6 +128,7 @@ export type Database = {
           exit_date: string | null
           exit_price: number | null
           id: string
+          image_url: string | null
           limit_order: string | null
           notes: string | null
           profit_loss: number | null
@@ -151,6 +152,7 @@ export type Database = {
           exit_date?: string | null
           exit_price?: number | null
           id?: string
+          image_url?: string | null
           limit_order?: string | null
           notes?: string | null
           profit_loss?: number | null
@@ -174,6 +176,7 @@ export type Database = {
           exit_date?: string | null
           exit_price?: number | null
           id?: string
+          image_url?: string | null
           limit_order?: string | null
           notes?: string | null
           profit_loss?: number | null

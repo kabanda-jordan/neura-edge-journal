@@ -7,15 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 
 export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     symbol: "",
     trade_type: "long",
     entry_price: "",
+    exit_price: "",
     quantity: "",
     notes: "",
     strategy_type: "",
@@ -24,6 +27,23 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     risk_percentage: "",
     limit_order: "",
   });
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +56,33 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         throw new Error("Not authenticated");
       }
 
+      let imageUrl = null;
+
+      // Upload image if selected
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('trade-images')
+          .upload(fileName, imageFile);
+
+        if (uploadError) throw uploadError;
+        
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('trade-images')
+          .getPublicUrl(fileName);
+        
+        imageUrl = publicUrl;
+      }
+
       const { error } = await supabase.from('trades').insert({
         user_id: user.id,
         symbol: formData.symbol.toUpperCase(),
         trade_type: formData.trade_type,
         entry_price: parseFloat(formData.entry_price),
+        exit_price: formData.exit_price ? parseFloat(formData.exit_price) : null,
         quantity: parseFloat(formData.quantity),
         notes: formData.notes,
         strategy_type: formData.strategy_type,
@@ -48,6 +90,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         confidence: parseInt(formData.confidence),
         risk_percentage: formData.risk_percentage ? parseFloat(formData.risk_percentage) : null,
         limit_order: formData.limit_order,
+        image_url: imageUrl,
         status: 'open',
         entry_date: new Date().toISOString(),
       });
@@ -63,6 +106,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         symbol: "",
         trade_type: "long",
         entry_price: "",
+        exit_price: "",
         quantity: "",
         notes: "",
         strategy_type: "",
@@ -71,6 +115,8 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         risk_percentage: "",
         limit_order: "",
       });
+      setImageFile(null);
+      setImagePreview(null);
 
       onSuccess?.();
     } catch (error: any) {
@@ -121,7 +167,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="entry">Entry Price</Label>
               <Input
@@ -132,6 +178,17 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
                 value={formData.entry_price}
                 onChange={(e) => setFormData({ ...formData, entry_price: e.target.value })}
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="exit">Exit Price (Optional)</Label>
+              <Input
+                id="exit"
+                type="number"
+                step="0.01"
+                placeholder="155.00"
+                value={formData.exit_price}
+                onChange={(e) => setFormData({ ...formData, exit_price: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -224,6 +281,45 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="image">Trade Screenshot (Optional)</Label>
+            <div className="flex flex-col gap-2">
+              {imagePreview ? (
+                <div className="relative">
+                  <img 
+                    src={imagePreview} 
+                    alt="Trade preview" 
+                    className="w-full h-48 object-cover rounded-md"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2"
+                    onClick={removeImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label 
+                  htmlFor="image" 
+                  className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors"
+                >
+                  <Upload className="h-8 w-8 mb-2 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Click to upload image</span>
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
+                </label>
+              )}
+            </div>
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
