@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      goals: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          id: string
+          status: string
+          target_date: string | null
+          target_value: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          status?: string
+          target_date?: string | null
+          target_value: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          status?: string
+          target_date?: string | null
+          target_value?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      playbooks: {
+        Row: {
+          avg_profit: number | null
+          created_at: string
+          description: string | null
+          id: string
+          rules: Json | null
+          strategy: string
+          title: string
+          total_trades: number | null
+          updated_at: string
+          user_id: string
+          win_rate: number | null
+        }
+        Insert: {
+          avg_profit?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          rules?: Json | null
+          strategy: string
+          title: string
+          total_trades?: number | null
+          updated_at?: string
+          user_id: string
+          win_rate?: number | null
+        }
+        Update: {
+          avg_profit?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          rules?: Json | null
+          strategy?: string
+          title?: string
+          total_trades?: number | null
+          updated_at?: string
+          user_id?: string
+          win_rate?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -36,6 +114,60 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trades: {
+        Row: {
+          created_at: string
+          entry_date: string
+          entry_price: number
+          exit_date: string | null
+          exit_price: number | null
+          id: string
+          notes: string | null
+          profit_loss: number | null
+          quantity: number
+          status: string
+          symbol: string
+          tags: string[] | null
+          trade_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date: string
+          entry_price: number
+          exit_date?: string | null
+          exit_price?: number | null
+          id?: string
+          notes?: string | null
+          profit_loss?: number | null
+          quantity: number
+          status?: string
+          symbol: string
+          tags?: string[] | null
+          trade_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          entry_price?: number
+          exit_date?: string | null
+          exit_price?: number | null
+          id?: string
+          notes?: string | null
+          profit_loss?: number | null
+          quantity?: number
+          status?: string
+          symbol?: string
+          tags?: string[] | null
+          trade_type?: string
           updated_at?: string
           user_id?: string
         }
