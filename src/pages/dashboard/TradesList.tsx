@@ -4,12 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, TrendingDown, Plus } from "lucide-react";
+import { TrendingUp, TrendingDown, Plus, Eye } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
+import { TradeDetailsDialog } from "@/components/dashboard/TradeDetailsDialog";
 
 export const TradesList = () => {
   const [trades, setTrades] = useState<any[]>([]);
+  const [selectedTrade, setSelectedTrade] = useState<any>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -90,6 +93,11 @@ export const TradesList = () => {
     return days[new Date(date).getDay()];
   };
 
+  const handleViewDetails = (trade: any) => {
+    setSelectedTrade(trade);
+    setDetailsOpen(true);
+  };
+
   if (trades.length === 0) {
     return (
       <Card className="glass-card">
@@ -111,6 +119,12 @@ export const TradesList = () => {
   }
 
   return (
+    <>
+      <TradeDetailsDialog 
+        trade={selectedTrade} 
+        open={detailsOpen} 
+        onOpenChange={setDetailsOpen} 
+      />
     <Card className="glass-card">
       <CardHeader>
         <CardTitle>Master Trade Log</CardTitle>
@@ -131,7 +145,7 @@ export const TradesList = () => {
                 <TableHead className="whitespace-nowrap">Limit</TableHead>
                 <TableHead className="whitespace-nowrap">PnL $</TableHead>
                 <TableHead className="whitespace-nowrap">Status</TableHead>
-                <TableHead className="whitespace-nowrap">Action</TableHead>
+                <TableHead className="whitespace-nowrap text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -226,18 +240,29 @@ export const TradesList = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {trade.profit_loss === null && (
+                      <div className="flex items-center gap-2 justify-center">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            const exitPrice = prompt('Enter exit price:');
-                            if (exitPrice) closeTrade(trade.id, parseFloat(exitPrice));
-                          }}
+                          onClick={() => handleViewDetails(trade)}
+                          className="gap-1"
                         >
-                          Close
+                          <Eye className="w-3 h-3" />
+                          View
                         </Button>
-                      )}
+                        {trade.profit_loss === null && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const exitPrice = prompt('Enter exit price:');
+                              if (exitPrice) closeTrade(trade.id, parseFloat(exitPrice));
+                            }}
+                          >
+                            Close
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -247,5 +272,6 @@ export const TradesList = () => {
         </div>
       </CardContent>
     </Card>
+    </>
   );
 };
