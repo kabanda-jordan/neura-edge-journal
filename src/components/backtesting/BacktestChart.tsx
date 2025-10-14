@@ -3,7 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind } from "lucide-react";
-import { createChart, IChartApi, CandlestickData, UTCTimestamp, CandlestickSeries } from 'lightweight-charts';
+import { 
+  createChart, 
+  IChartApi, 
+  CandlestickData, 
+  UTCTimestamp, 
+  ISeriesApi,
+  CandlestickSeriesPartialOptions,
+  LineStyle,
+  IPriceLine
+} from 'lightweight-charts';
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -79,12 +88,18 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<any>(null);
+  const smaSeriesRef = useRef<any>(null);
+  const tpLineRef = useRef<IPriceLine | null>(null);
+  const slLineRef = useRef<IPriceLine | null>(null);
+  const allCandlesRef = useRef<CandlestickData[]>([]);
+  const currentIndexRef = useRef(0);
   const { toast } = useToast();
 
   // Backtesting state
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
   const [currentPrice, setCurrentPrice] = useState(50000);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Position and trading state
   const [position, setPosition] = useState<PositionType>(null);
@@ -118,7 +133,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       },
     });
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+    const candlestickSeries = chart.addSeries('Candlestick' as any, {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderUpColor: '#10b981',
@@ -127,11 +142,31 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       wickDownColor: '#ef4444',
     });
 
+    // Add SMA indicator
+    const smaSeries = chart.addSeries('Line' as any, {
+      color: '#2962FF',
+      lineWidth: 2,
+      title: 'SMA 20',
+    });
+
     const chartData = generateCandlestickData(startDate, timeframe);
-    candlestickSeries.setData(chartData);
+    allCandlesRef.current = chartData;
+    
+    // Show initial candles
+    const initialCandles = chartData.slice(0, 50);
+    candlestickSeries.setData(initialCandles);
+    
+    // Calculate and set SMA
+    const smaData = calculateSMA(initialCandles, 20);
+    smaSeries.setData(smaData);
+    
+    currentIndexRef.current = 50;
+    setCurrentIndex(50);
+    setCurrentPrice(chartData[49]?.close || 50000);
 
     chartRef.current = chart;
     candlestickSeriesRef.current = candlestickSeries;
+    smaSeriesRef.current = smaSeries;
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -147,15 +182,44 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     };
   }, [symbol, timeframe, startDate]);
 
-  // Simulated price updates for backtesting
+  // Calculate SMA
+  const calculateSMA = (data: CandlestickData[], period: number) => {
+    const sma: { time: any; value: number }[] = [];
+    for (let i = period - 1; i < data.length; i++) {
+      let sum = 0;
+      for (let j = 0; j < period; j++) {
+        sum += data[i - j].close;
+      }
+      sma.push({ time: data[i].time, value: sum / period });
+    }
+    return sma;
+  };
+
+  // Progressive candle reveal for backtesting
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || !candlestickSeriesRef.current || !smaSeriesRef.current) return;
 
     const interval = setInterval(() => {
-      setCurrentPrice(prev => {
-        const change = (Math.random() - 0.5) * (prev * 0.002); // 0.2% volatility
-        return Math.max(1000, prev + change);
-      });
+      const nextIndex = currentIndexRef.current;
+      if (nextIndex >= allCandlesRef.current.length) {
+        setIsPlaying(false);
+        toast({ title: 'Replay Complete', description: 'End of data reached' });
+        return;
+      }
+
+      const nextCandle = allCandlesRef.current[nextIndex];
+      candlestickSeriesRef.current?.update(nextCandle);
+      
+      // Update SMA
+      const visibleData = allCandlesRef.current.slice(0, nextIndex + 1);
+      const smaData = calculateSMA(visibleData, 20);
+      if (smaData.length > 0) {
+        smaSeriesRef.current?.update(smaData[smaData.length - 1]);
+      }
+      
+      setCurrentPrice(nextCandle.close);
+      currentIndexRef.current = nextIndex + 1;
+      setCurrentIndex(nextIndex + 1);
     }, 1000 / speed);
 
     return () => clearInterval(interval);
@@ -206,6 +270,44 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     });
   }, [currentPrice, position, entryPrice, balance, trades, speed]);
 
+  // Update TP/SL lines on chart
+  useEffect(() => {
+    if (!candlestickSeriesRef.current) return;
+
+    // Remove old lines
+    if (tpLineRef.current) {
+      candlestickSeriesRef.current.removePriceLine(tpLineRef.current);
+      tpLineRef.current = null;
+    }
+    if (slLineRef.current) {
+      candlestickSeriesRef.current.removePriceLine(slLineRef.current);
+      slLineRef.current = null;
+    }
+
+    // Add new lines if position active
+    if (position && tp != null) {
+      tpLineRef.current = candlestickSeriesRef.current.createPriceLine({
+        price: tp,
+        color: '#10b981',
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: 'TP',
+      });
+    }
+
+    if (position && sl != null) {
+      slLineRef.current = candlestickSeriesRef.current.createPriceLine({
+        price: sl,
+        color: '#ef4444',
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: 'SL',
+      });
+    }
+  }, [position, tp, sl]);
+
   // Trading actions
   const openLong = () => {
     if (position) {
@@ -214,8 +316,10 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     }
     setPosition('long');
     setEntryPrice(currentPrice);
-    setTp(currentPrice * 1.02);
-    setSl(currentPrice * 0.98);
+    const newTp = currentPrice * 1.02;
+    const newSl = currentPrice * 0.98;
+    setTp(newTp);
+    setSl(newSl);
     toast({ title: 'Long Opened', description: `Entry: $${currentPrice.toFixed(2)}` });
   };
 
@@ -226,8 +330,10 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     }
     setPosition('short');
     setEntryPrice(currentPrice);
-    setTp(currentPrice * 0.98);
-    setSl(currentPrice * 1.02);
+    const newTp = currentPrice * 0.98;
+    const newSl = currentPrice * 1.02;
+    setTp(newTp);
+    setSl(newSl);
     toast({ title: 'Short Opened', description: `Entry: $${currentPrice.toFixed(2)}` });
   };
 
@@ -253,6 +359,17 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       description: `P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, 
       variant: profit >= 0 ? 'default' : 'destructive' 
     });
+    
+    // Remove price lines
+    if (tpLineRef.current && candlestickSeriesRef.current) {
+      candlestickSeriesRef.current.removePriceLine(tpLineRef.current);
+      tpLineRef.current = null;
+    }
+    if (slLineRef.current && candlestickSeriesRef.current) {
+      candlestickSeriesRef.current.removePriceLine(slLineRef.current);
+      slLineRef.current = null;
+    }
+    
     setPosition(null);
     setEntryPrice(null);
     setTp(null);
@@ -264,13 +381,35 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
   
   const reset = () => {
     setIsPlaying(false);
+    
+    // Remove price lines
+    if (tpLineRef.current && candlestickSeriesRef.current) {
+      candlestickSeriesRef.current.removePriceLine(tpLineRef.current);
+      tpLineRef.current = null;
+    }
+    if (slLineRef.current && candlestickSeriesRef.current) {
+      candlestickSeriesRef.current.removePriceLine(slLineRef.current);
+      slLineRef.current = null;
+    }
+    
     setPosition(null);
     setEntryPrice(null);
     setTp(null);
     setSl(null);
     setBalance(initialBalance);
     setTrades([]);
-    setCurrentPrice(50000);
+    
+    // Reset chart to initial state
+    if (candlestickSeriesRef.current && smaSeriesRef.current) {
+      const initialCandles = allCandlesRef.current.slice(0, 50);
+      candlestickSeriesRef.current.setData(initialCandles);
+      const smaData = calculateSMA(initialCandles, 20);
+      smaSeriesRef.current.setData(smaData);
+      currentIndexRef.current = 50;
+      setCurrentIndex(50);
+      setCurrentPrice(allCandlesRef.current[49]?.close || 50000);
+    }
+    
     toast({ title: 'Reset', description: 'Backtesting reset' });
   };
 
@@ -332,10 +471,20 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
             </div>
           </div>
 
-          {/* Right: Price info */}
+          {/* Right: Price info & P&L */}
           <div className="pointer-events-none text-right text-xs bg-background/90 backdrop-blur rounded px-3 py-2 border border-border">
             <div className="font-mono font-bold text-primary text-lg">${currentPrice.toFixed(2)}</div>
             <div className="text-muted-foreground">{symbol}</div>
+            {position && entryPrice != null && (
+              <div className={`mt-1 font-semibold ${
+                (position === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice) >= 0 
+                  ? 'text-green-500' 
+                  : 'text-red-500'
+              }`}>
+                P&L: {(position === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice) >= 0 ? '+' : ''}
+                ${(position === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice).toFixed(2)}
+              </div>
+            )}
           </div>
         </div>
 
