@@ -1,16 +1,37 @@
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
+import trademindLogo from "@/assets/trademind-logo.png";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Features", path: "/#features" },
-    { name: "Dashboard", path: "/dashboard" },
+    ...(session ? [{ name: "Dashboard", path: "/dashboard" }] : []),
+    { name: "Pricing", path: "/#pricing" },
+    { name: "Resources", path: "/#resources" },
   ];
 
   const isActive = (path: string) => {
@@ -18,13 +39,19 @@ export const Navbar = () => {
     return location.pathname === path;
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/40">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-primary/10">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="text-2xl font-bold text-gradient">
-            AlphaJournal
+          <Link to="/" className="flex items-center space-x-3 hover:scale-105 transition-transform">
+            <img src={trademindLogo} alt="Trademind" className="w-10 h-10" />
+            <span className="text-2xl font-bold text-gradient">Trademind</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -46,16 +73,35 @@ export const Navbar = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link to="/dashboard">
-              <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10">
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/dashboard">
-              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground glow-green">
-                Get Started
-              </Button>
-            </Link>
+            {session ? (
+              <>
+                <Link to="/dashboard">
+                  <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10">
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button 
+                  onClick={handleSignOut}
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-primary"
+                >
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -69,7 +115,7 @@ export const Navbar = () => {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden py-4 space-y-4 animate-slide-up">
+          <div className="md:hidden py-4 space-y-4 animate-slide-up border-t border-border/40">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
@@ -84,17 +130,38 @@ export const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-            <div className="space-y-2 pt-4 border-t border-border">
-              <Link to="/dashboard" onClick={() => setIsOpen(false)} className="block">
-                <Button variant="outline" className="w-full border-primary/50 text-primary">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/dashboard" onClick={() => setIsOpen(false)} className="block">
-                <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                  Get Started
-                </Button>
-              </Link>
+
+            {/* Mobile CTA */}
+            <div className="space-y-4 mt-6">
+              {session ? (
+                <>
+                  <Link to="/dashboard" className="block">
+                    <Button variant="outline" className="w-full border-primary/50 text-primary">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button 
+                    onClick={handleSignOut}
+                    variant="ghost"
+                    className="w-full text-muted-foreground"
+                  >
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/auth" className="block">
+                    <Button variant="outline" className="w-full border-primary/50 text-primary">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/auth" className="block">
+                    <Button className="w-full bg-gradient-to-r from-primary to-accent text-background">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

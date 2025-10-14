@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 
 export const CTA = () => {
   return (
@@ -10,22 +11,23 @@ export const CTA = () => {
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center space-y-8">
+          <p className="text-primary font-semibold uppercase tracking-wide">Community</p>
           <h2 className="text-5xl md:text-6xl font-bold leading-tight">
-            Ready to Level Up Your{" "}
-            <span className="text-gradient">Trading Mindset?</span>
+            Thousands of traders are using <span className="text-gradient">Trademind</span> to learn, collab, and improve.
           </h2>
           
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Join thousands of traders who are already using AI to make smarter decisions and build consistent profits.
+            Join a vibrant community of traders, learn from webinars, and share with traders all over the world.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-            <Link to="/dashboard">
+            <Link to="/auth">
               <Button 
                 size="lg" 
-                className="text-lg px-8 py-6 bg-accent hover:bg-accent/90 text-accent-foreground glow-green font-semibold"
+                className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background font-semibold group"
               >
-                Join the Beta
+                Get Started Today
+                <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Button 
@@ -38,7 +40,7 @@ export const CTA = () => {
           </div>
 
           <p className="text-sm text-muted-foreground pt-4">
-            No credit card required • 14-day free trial • Cancel anytime
+            10k+ Community Members • 150+ Trader Communities • 100+ Webinars & Bootcamps
           </p>
         </div>
       </div>

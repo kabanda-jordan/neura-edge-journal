@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import heroBackground from "@/assets/hero-bg.jpg";
+import { ArrowRight } from "lucide-react";
 
 export const Hero = () => {
   return (
@@ -28,24 +29,25 @@ export const Hero = () => {
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 py-20 text-center animate-slide-up">
         <div className="max-w-5xl mx-auto space-y-8">
-          <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold leading-tight">
-            Track Smarter.{" "}
-            <span className="text-gradient">Trade Better.</span>
-            <br />
-            With AI.
+          <p className="text-primary font-semibold mb-4 uppercase tracking-wide">Welcome to Trademind</p>
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold leading-tight">
+            Everything you ever
+            <span className="text-gradient block mt-2">wanted to know</span>
+            <span className="block mt-2">about your trading...</span>
           </h1>
           
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-            Analyze your trades, improve your discipline, and grow your edge with AI insights.
+            ...but your spreadsheets never told you. Discover metrics that matter and behaviors that lead to profit with the power of journaling and analytics.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-            <Link to="/dashboard">
+            <Link to="/auth">
               <Button 
                 size="lg" 
-                className="text-lg px-8 py-6 bg-accent hover:bg-accent/90 text-accent-foreground glow-green font-semibold"
+                className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background font-semibold group"
               >
-                Start Journaling Free
+                Get Started Now
+                <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Button 

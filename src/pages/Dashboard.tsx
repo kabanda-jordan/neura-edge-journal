@@ -14,7 +14,7 @@ const Dashboard = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">
-            Welcome back, <span className="text-gradient">Trader</span>
+            Welcome back to <span className="text-gradient">Trademind</span>
           </h1>
           <p className="text-muted-foreground">Here's your trading performance overview</p>
         </div>
