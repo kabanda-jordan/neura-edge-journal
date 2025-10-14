@@ -64,7 +64,7 @@ export const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 hover:scale-105 transition-transform">
             <img src={trademindLogo} alt="Trademind" className="w-10 h-10" />
-            <span className="text-2xl font-bold text-gradient">Trademind</span>
+            <span className="text-2xl font-bold text-gradient font-display tracking-wider">TRADEMIND</span>
           </Link>
 
           {/* Desktop Navigation */}

@@ -101,7 +101,7 @@ const Auth = () => {
       <div className="glass-card p-8 rounded-2xl w-full max-w-md relative z-10 border border-primary/20">
         <div className="flex flex-col items-center mb-8">
           <img src={trademindLogo} alt="Trademind" className="w-20 h-20 mb-4" />
-          <h1 className="text-3xl font-bold text-gradient">Trademind</h1>
+          <h1 className="text-3xl font-bold text-gradient font-display tracking-wider">TRADEMIND</h1>
           <p className="text-muted-foreground mt-2">
             {isLogin ? "Welcome back" : "Start your journey"}
           </p>

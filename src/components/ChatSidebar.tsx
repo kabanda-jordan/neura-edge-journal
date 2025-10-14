@@ -79,19 +79,20 @@ export const ChatSidebar = () => {
       {/* Chat Sidebar */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-full sm:w-96 bg-card border-l border-border shadow-2xl z-50",
+          "fixed top-0 right-0 h-full w-full sm:w-96 glass-card border-l border-border shadow-2xl z-50",
           "transform transition-transform duration-300 ease-in-out",
+          "bg-card/95 backdrop-blur-xl",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center animate-glow">
               <Bot className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">TradeMind AI</h3>
+              <h3 className="font-semibold text-lg font-display tracking-wide">TRADEMIND AI</h3>
               <p className="text-xs text-muted-foreground">Your Trading Assistant</p>
             </div>
           </div>
@@ -152,7 +153,7 @@ export const ChatSidebar = () => {
         </ScrollArea>
 
         {/* Input */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card/95 backdrop-blur-xl">
           <div className="flex gap-2">
             <Input
               value={input}
