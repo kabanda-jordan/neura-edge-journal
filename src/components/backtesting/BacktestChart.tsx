@@ -165,9 +165,21 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
         borderColor: '#374151',
         timeVisible: true,
         secondsVisible: false,
+        shiftVisibleRangeOnNewBar: false,
       },
       rightPriceScale: {
         borderColor: '#374151',
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
       },
     });
 
@@ -211,8 +223,8 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     
     candleSeriesRef.current.setData(visibleData);
     
-    // Auto-scroll to latest candle
-    if (chartRef.current && visibleData.length > 0) {
+    // Auto-scroll to latest candle only during playback
+    if (isPlaying && chartRef.current && visibleData.length > 0) {
       chartRef.current.timeScale().scrollToPosition(3, false);
     }
   }, [idx, data]);
@@ -416,7 +428,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       <div ref={containerRef} className="w-full h-[600px]" />
 
       {/* Overlay controls inside chart area */}
-      <div className="absolute inset-0 z-10 flex flex-col justify-between p-3">
+      <div className="absolute inset-0 z-10 flex flex-col justify-between p-3 pointer-events-none">
         {/* Top-left replay controls */}
         <div className="pointer-events-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={decSpeed}><Rewind className="w-4 h-4" /></Button>
