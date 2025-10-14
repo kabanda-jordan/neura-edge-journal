@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack } from "lucide-react";
-import { createChart, IChartApi, ISeriesApi, CandlestickData, ColorType, CandlestickSeries } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, ColorType, CandlestickSeries, IPriceLine } from 'lightweight-charts';
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -84,6 +85,8 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const tpLineRef = useRef<IPriceLine | null>(null);
+  const slLineRef = useRef<IPriceLine | null>(null);
   const { toast } = useToast();
 
   // Replay and trading state
@@ -251,6 +254,43 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     };
   }, [isPlaying, speed, data.length, idx]);
 
+  // Update TP/SL price lines on chart
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+
+    // Remove old lines
+    if (tpLineRef.current) {
+      candleSeriesRef.current.removePriceLine(tpLineRef.current);
+      tpLineRef.current = null;
+    }
+    if (slLineRef.current) {
+      candleSeriesRef.current.removePriceLine(slLineRef.current);
+      slLineRef.current = null;
+    }
+
+    // Add new lines if position is active
+    if (position && tp != null) {
+      tpLineRef.current = candleSeriesRef.current.createPriceLine({
+        price: tp,
+        color: '#10b981',
+        lineWidth: 2,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: 'TP',
+      });
+    }
+    if (position && sl != null) {
+      slLineRef.current = candleSeriesRef.current.createPriceLine({
+        price: sl,
+        color: '#ef4444',
+        lineWidth: 2,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: 'SL',
+      });
+    }
+  }, [position, tp, sl]);
+
   // Auto-close on TP/SL using actual candle data
   useEffect(() => {
     if (!position || entryPrice == null || !currentCandle) return;
@@ -360,6 +400,16 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const skipBack = () => setIdx(v => Math.max(v - 50, 50));
   const incSpeed = () => setSpeed(s => Math.min(s * 2, 16));
   const decSpeed = () => setSpeed(s => Math.max(s / 2, 0.25));
+  
+  const updateTp = (value: string) => {
+    const num = parseFloat(value);
+    if (!isNaN(num) && num > 0) setTp(num);
+  };
+  
+  const updateSl = (value: string) => {
+    const num = parseFloat(value);
+    if (!isNaN(num) && num > 0) setSl(num);
+  };
 
   return (
     <div className="relative w-full rounded-lg bg-card overflow-hidden">
@@ -377,11 +427,23 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
           <Button variant="outline" size="sm" onClick={skipForward}><SkipForward className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" onClick={incSpeed}><FastForward className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" onClick={reset}><RotateCcw className="w-4 h-4" /></Button>
-          <div className="text-xs text-muted-foreground ml-2">Speed: {speed}x</div>
+          <div className="flex items-center gap-2 ml-2">
+            <span className="text-xs text-muted-foreground">Speed:</span>
+            <Input 
+              type="number" 
+              value={speed} 
+              onChange={(e) => setSpeed(Math.max(0.25, Math.min(16, parseFloat(e.target.value) || 1)))}
+              className="w-16 h-7 text-xs"
+              step="0.25"
+              min="0.25"
+              max="16"
+            />
+            <span className="text-xs text-muted-foreground">x</span>
+          </div>
         </div>
 
         {/* Bottom-left trading controls */}
-        <div className="pointer-events-auto flex items-center gap-2">
+        <div className="pointer-events-auto flex items-center gap-2 flex-wrap">
           <Button onClick={openLong} disabled={!!position} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
             <TrendingUp className="w-4 h-4 mr-2" />Long
           </Button>
@@ -392,10 +454,27 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
             <Target className="w-4 h-4 mr-2" />Close
           </Button>
           {position && (
-            <div className="ml-4 flex items-center gap-3 text-xs">
-              <span className="text-muted-foreground">Drag TP/SL lines on chart</span>
-              <span>TP: {tp ? `$${tp.toFixed(2)}` : '-'}</span>
-              <span>SL: {sl ? `$${sl.toFixed(2)}` : '-'}</span>
+            <div className="ml-4 flex items-center gap-3 text-xs bg-background/80 backdrop-blur rounded px-3 py-2 border border-border">
+              <div className="flex items-center gap-2">
+                <span className="text-green-500">TP:</span>
+                <Input 
+                  type="number" 
+                  value={tp || ''} 
+                  onChange={(e) => updateTp(e.target.value)}
+                  className="w-24 h-7 text-xs"
+                  step="0.01"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-red-500">SL:</span>
+                <Input 
+                  type="number" 
+                  value={sl || ''} 
+                  onChange={(e) => updateSl(e.target.value)}
+                  className="w-24 h-7 text-xs"
+                  step="0.01"
+                />
+              </div>
             </div>
           )}
         </div>
