@@ -29,9 +29,6 @@ export const Navbar = () => {
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Features", path: "/#features" },
-    ...(session ? [{ name: "Dashboard", path: "/dashboard" }] : []),
-    { name: "Pricing", path: "/#pricing" },
-    { name: "Resources", path: "/#resources" },
   ];
 
   const isActive = (path: string) => {

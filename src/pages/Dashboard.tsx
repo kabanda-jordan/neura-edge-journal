@@ -1,68 +1,36 @@
+import { Routes, Route } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { ProfitChart } from "@/components/dashboard/ProfitChart";
-import { AIInsights } from "@/components/dashboard/AIInsights";
-import { RecentTrades } from "@/components/dashboard/RecentTrades";
-import { TrendingUp, Target, DollarSign, Award } from "lucide-react";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { Overview } from "./dashboard/Overview";
+import { Journal } from "./dashboard/Journal";
+import { Analytics } from "./dashboard/Analytics";
+import { Performance } from "./dashboard/Performance";
+import { Playbooks } from "./dashboard/Playbooks";
+import { Insights } from "./dashboard/Insights";
+import { Goals } from "./dashboard/Goals";
+import { Learning } from "./dashboard/Learning";
+import { Profile } from "./dashboard/Profile";
+import { Settings } from "./dashboard/Settings";
 
 const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <DashboardSidebar />
       
-      <main className="container mx-auto px-4 pt-24 pb-12">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">
-            Welcome back to <span className="text-gradient">Trademind</span>
-          </h1>
-          <p className="text-muted-foreground">Here's your trading performance overview</p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Total Profit"
-            value="$12,847"
-            change="+23.5%"
-            icon={DollarSign}
-            positive={true}
-          />
-          <StatsCard
-            title="Win Rate"
-            value="67.8%"
-            change="+5.2%"
-            icon={Target}
-            positive={true}
-          />
-          <StatsCard
-            title="Total Trades"
-            value="142"
-            change="+18"
-            icon={TrendingUp}
-            positive={true}
-          />
-          <StatsCard
-            title="Best Streak"
-            value="8 Wins"
-            change="New Record!"
-            icon={Award}
-            positive={true}
-          />
-        </div>
-
-        {/* Charts and Insights */}
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <ProfitChart />
-          </div>
-          <div>
-            <AIInsights />
-          </div>
-        </div>
-
-        {/* Recent Trades */}
-        <RecentTrades />
+      <main className="ml-64 pt-24 pb-12 px-8">
+        <Routes>
+          <Route path="/" element={<Overview />} />
+          <Route path="/journal" element={<Journal />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/performance" element={<Performance />} />
+          <Route path="/playbooks" element={<Playbooks />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/goals" element={<Goals />} />
+          <Route path="/learning" element={<Learning />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
       </main>
     </div>
   );
