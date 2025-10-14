@@ -46,8 +46,8 @@ interface BacktestChartProps {
   }) => void;
 }
 
-// Generate sample candlestick data
-const generateCandlestickData = (startDate: string, timeframe: string): CandlestickData[] => {
+// Generate sample candlestick data based on market type
+const generateCandlestickData = (startDate: string, timeframe: string, symbol: string, market: string): CandlestickData[] => {
   const data: CandlestickData[] = [];
   let currentTime = new Date(startDate).getTime() / 1000;
   
@@ -56,13 +56,64 @@ const generateCandlestickData = (startDate: string, timeframe: string): Candlest
   };
   const minutes = timeframeMinutes[timeframe] || 60;
   
-  let price = 50000;
+  // Set realistic base prices and volatility based on market and symbol
+  let basePrice = 50000;
+  let volatility = 0.02;
+  
+  if (market === 'crypto') {
+    if (symbol.includes('BTC')) {
+      basePrice = 50000;
+      volatility = 0.025;
+    } else if (symbol.includes('ETH')) {
+      basePrice = 3000;
+      volatility = 0.03;
+    } else if (symbol.includes('SOL')) {
+      basePrice = 150;
+      volatility = 0.04;
+    } else {
+      basePrice = 100;
+      volatility = 0.035;
+    }
+  } else if (market === 'forex') {
+    basePrice = 1.1;
+    volatility = 0.003;
+  } else if (market === 'stocks') {
+    if (symbol.includes('AAPL') || symbol.includes('MSFT')) {
+      basePrice = 180;
+      volatility = 0.015;
+    } else if (symbol.includes('TSLA')) {
+      basePrice = 250;
+      volatility = 0.03;
+    } else if (symbol.includes('NVDA')) {
+      basePrice = 450;
+      volatility = 0.025;
+    } else {
+      basePrice = 150;
+      volatility = 0.02;
+    }
+  } else if (market === 'commodities') {
+    if (symbol.includes('GOLD') || symbol.includes('XAU')) {
+      basePrice = 2000;
+      volatility = 0.01;
+    } else if (symbol.includes('OIL') || symbol.includes('WTI')) {
+      basePrice = 75;
+      volatility = 0.025;
+    } else if (symbol.includes('SILVER') || symbol.includes('XAG')) {
+      basePrice = 25;
+      volatility = 0.015;
+    } else {
+      basePrice = 100;
+      volatility = 0.02;
+    }
+  }
+  
+  let price = basePrice;
   for (let i = 0; i < 500; i++) {
     const open = price;
-    const change = (Math.random() - 0.5) * price * 0.02;
+    const change = (Math.random() - 0.5) * price * volatility;
     const close = open + change;
-    const high = Math.max(open, close) + Math.random() * price * 0.01;
-    const low = Math.min(open, close) - Math.random() * price * 0.01;
+    const high = Math.max(open, close) + Math.random() * price * (volatility / 2);
+    const low = Math.min(open, close) - Math.random() * price * (volatility / 2);
     
     data.push({
       time: currentTime as UTCTimestamp,
@@ -151,7 +202,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       lineWidth: 2,
     });
 
-    const chartData = generateCandlestickData(startDate, timeframe);
+    const chartData = generateCandlestickData(startDate, timeframe, symbol, market);
     allCandlesRef.current = chartData;
     
     // Show initial candles
@@ -182,7 +233,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [symbol, timeframe, startDate]);
+  }, [symbol, timeframe, startDate, market]);
 
   // Handle dragging TP/SL lines with smooth animation
   useEffect(() => {
