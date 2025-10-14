@@ -1,15 +1,38 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const trades = [
-  { id: 1, symbol: "AAPL", type: "Long", entry: 178.50, exit: 182.30, pnl: 380, status: "win" },
-  { id: 2, symbol: "TSLA", type: "Short", entry: 245.80, exit: 241.20, pnl: 460, status: "win" },
-  { id: 3, symbol: "NVDA", type: "Long", entry: 485.30, exit: 480.10, pnl: -520, status: "loss" },
-  { id: 4, symbol: "SPY", type: "Long", entry: 455.20, exit: 458.90, pnl: 370, status: "win" },
-  { id: 5, symbol: "AMZN", type: "Short", entry: 152.40, exit: 154.60, pnl: -220, status: "loss" },
-];
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { TrendingUp } from "lucide-react";
 
 export const RecentTrades = () => {
+  const [trades, setTrades] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchTrades = async () => {
+      const { data } = await supabase
+        .from('trades')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (data) setTrades(data);
+    };
+
+    fetchTrades();
+
+    // Real-time WebSocket subscription
+    const channel = supabase
+      .channel('recent-trades')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'trades' }, 
+        () => fetchTrades()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
   return (
     <Card className="glass-card p-6 rounded-xl">
       <div className="mb-6">
@@ -18,37 +41,51 @@ export const RecentTrades = () => {
       </div>
 
       <div className="space-y-3">
-        {trades.map((trade) => (
-          <div
-            key={trade.id}
-            className="bg-card/50 border border-border/50 rounded-lg p-4 hover:border-primary/50 transition-all"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold">{trade.symbol}</span>
-                    <Badge 
-                      variant="outline" 
-                      className={trade.type === "Long" ? "border-accent text-accent" : "border-primary text-primary"}
-                    >
-                      {trade.type}
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    ${trade.entry} → ${trade.exit}
+        {trades.length > 0 ? (
+          trades.map((trade) => (
+            <div
+              key={trade.id}
+              className="bg-card/50 border border-border/50 rounded-lg p-4 hover:border-primary/50 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold">{trade.symbol}</span>
+                      <Badge 
+                        variant="outline" 
+                        className={trade.trade_type === "long" ? "border-accent text-accent" : "border-primary text-primary"}
+                      >
+                        {trade.trade_type}
+                      </Badge>
+                      <Badge variant={trade.status === 'closed' ? 'default' : 'secondary'}>
+                        {trade.status}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      ${trade.entry_price} {trade.exit_price ? `→ $${trade.exit_price}` : ''}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className={`text-lg font-bold ${trade.status === "win" ? "text-accent" : "text-destructive"}`}>
-                  {trade.pnl > 0 ? "+" : ""}${trade.pnl}
+                <div className="text-right">
+                  {trade.profit_loss !== null && (
+                    <>
+                      <div className={`text-lg font-bold ${trade.profit_loss > 0 ? "text-accent" : "text-destructive"}`}>
+                        {trade.profit_loss > 0 ? "+" : ""}${trade.profit_loss.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">P&L</div>
+                    </>
+                  )}
                 </div>
-                <div className="text-xs text-muted-foreground">P&L</div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <TrendingUp className="w-16 h-16 text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">No trades yet. Start trading to see your activity here.</p>
           </div>
-        ))}
+        )}
       </div>
     </Card>
   );
