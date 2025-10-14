@@ -103,6 +103,10 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const [balance, setBalance] = useState<number>(initialBalance);
   const [trades, setTrades] = useState<Trade[]>([]);
 
+  // TP/SL drag state
+  const [dragging, setDragging] = useState(false);
+  const [dragTarget, setDragTarget] = useState<'tp' | 'sl' | null>(null);
+
   const mappedSymbol = useMemo(() => {
     const s = symbol.replace(/[^a-zA-Z]/g, '').toUpperCase();
     return s.endsWith('USDT') ? s : s.endsWith('USD') ? s : s + 'USD';
@@ -302,6 +306,79 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       });
     }
   }, [position, tp, sl]);
+
+  // Enable dragging for TP/SL price lines
+  useEffect(() => {
+    const el = containerRef.current;
+    const series = candleSeriesRef.current;
+    if (!el || !series) return;
+
+    const getY = (e: PointerEvent | MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      return e.clientY - rect.top;
+    };
+
+    const threshold = 6; // px distance to "grab" the line
+
+    const nearestLine = (y: number): 'tp' | 'sl' | null => {
+      if (!position) return null;
+      const tpY = tp != null ? series.priceToCoordinate(tp) : null;
+      const slY = sl != null ? series.priceToCoordinate(sl) : null;
+      let best: { target: 'tp' | 'sl' | null; dist: number } = { target: null, dist: Infinity };
+      if (tpY != null) {
+        const d = Math.abs(y - tpY);
+        if (d < best.dist) best = { target: 'tp', dist: d };
+      }
+      if (slY != null) {
+        const d = Math.abs(y - slY);
+        if (d < best.dist) best = { target: 'sl', dist: d };
+      }
+      return best.dist <= threshold ? best.target : null;
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const y = getY(e);
+      if (!dragging) {
+        const near = nearestLine(y);
+        (el as HTMLElement).style.cursor = near ? 'ns-resize' : 'default';
+        return;
+      }
+      const price = series.coordinateToPrice(y);
+      if (price == null) return;
+      if (dragTarget === 'tp') setTp(price);
+      else if (dragTarget === 'sl') setSl(price);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!position) return;
+      const y = getY(e);
+      const near = nearestLine(y);
+      if (near) {
+        setDragTarget(near);
+        setDragging(true);
+        e.preventDefault();
+      }
+    };
+
+    const onPointerUp = () => {
+      if (dragging) {
+        setDragging(false);
+        setDragTarget(null);
+        (el as HTMLElement).style.cursor = 'default';
+      }
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      (el as HTMLElement).style.cursor = 'default';
+    };
+  }, [position, tp, sl, dragging, dragTarget]);
 
   // Auto-close on TP/SL using actual candle data
   useEffect(() => {
