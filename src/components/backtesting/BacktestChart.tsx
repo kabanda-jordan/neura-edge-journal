@@ -184,13 +184,28 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     };
   }, [symbol, timeframe, startDate]);
 
-  // Handle dragging TP/SL lines
+  // Handle dragging TP/SL lines with smooth animation
   useEffect(() => {
     if (!chartRef.current || !candlestickSeriesRef.current || !chartContainerRef.current) return;
 
     const chart = chartRef.current;
     const candlestickSeries = candlestickSeriesRef.current;
     const chartElement = chartContainerRef.current;
+    let rafId: number | null = null;
+    let pendingPrice: number | null = null;
+    let isDragging = false;
+
+    const updatePrice = () => {
+      if (pendingPrice !== null && isDraggingRef.current) {
+        if (isDraggingRef.current === 'tp') {
+          setTp(pendingPrice);
+        } else if (isDraggingRef.current === 'sl') {
+          setSl(pendingPrice);
+        }
+        pendingPrice = null;
+      }
+      rafId = null;
+    };
 
     const handleMouseDown = (e: MouseEvent) => {
       if (!position) return;
@@ -201,38 +216,62 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       const price = candlestickSeries.coordinateToPrice(y);
       if (!price) return;
       
-      const threshold = Math.abs(currentPrice * 0.01); // 1% threshold for easier grabbing
+      const threshold = Math.abs(currentPrice * 0.015); // 1.5% threshold for easier grabbing
       
       if (tp != null && Math.abs(price - tp) < threshold) {
         isDraggingRef.current = 'tp';
+        isDragging = true;
+        chartElement.style.cursor = 'grabbing';
         e.preventDefault();
       } else if (sl != null && Math.abs(price - sl) < threshold) {
         isDraggingRef.current = 'sl';
+        isDragging = true;
+        chartElement.style.cursor = 'grabbing';
         e.preventDefault();
       }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current) return;
-      
+      if (!position) {
+        chartElement.style.cursor = 'default';
+        return;
+      }
+
       const rect = chartElement.getBoundingClientRect();
       const y = e.clientY - rect.top;
       
       const price = candlestickSeries.coordinateToPrice(y);
       if (!price) return;
       
-      if (isDraggingRef.current === 'tp') {
-        setTp(price);
-      } else if (isDraggingRef.current === 'sl') {
-        setSl(price);
+      if (isDragging && isDraggingRef.current) {
+        // Use RAF for smooth updates
+        pendingPrice = price;
+        if (rafId === null) {
+          rafId = requestAnimationFrame(updatePrice);
+        }
+        e.preventDefault();
+      } else {
+        // Change cursor when hovering near lines
+        const threshold = Math.abs(currentPrice * 0.015);
+        
+        if ((tp != null && Math.abs(price - tp) < threshold) || 
+            (sl != null && Math.abs(price - sl) < threshold)) {
+          chartElement.style.cursor = 'grab';
+        } else {
+          chartElement.style.cursor = 'crosshair';
+        }
       }
-      
-      e.preventDefault();
     };
 
     const handleMouseUp = () => {
-      if (isDraggingRef.current) {
+      if (isDragging) {
+        isDragging = false;
         isDraggingRef.current = null;
+        chartElement.style.cursor = 'crosshair';
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
       }
     };
 
@@ -241,40 +280,18 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     chartElement.addEventListener('mouseup', handleMouseUp);
     chartElement.addEventListener('mouseleave', handleMouseUp);
     
-    // Change cursor when hovering near lines
-    const handleCursorChange = (e: MouseEvent) => {
-      if (!position) {
-        chartElement.style.cursor = 'default';
-        return;
-      }
-      
-      const rect = chartElement.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const price = candlestickSeries.coordinateToPrice(y);
-      
-      if (!price) {
-        chartElement.style.cursor = 'default';
-        return;
-      }
-      
-      const threshold = Math.abs(currentPrice * 0.01);
-      
-      if ((tp != null && Math.abs(price - tp) < threshold) || 
-          (sl != null && Math.abs(price - sl) < threshold)) {
-        chartElement.style.cursor = 'ns-resize';
-      } else {
-        chartElement.style.cursor = 'default';
-      }
-    };
-    
-    chartElement.addEventListener('mousemove', handleCursorChange);
+    // Set initial cursor
+    chartElement.style.cursor = 'crosshair';
 
     return () => {
       chartElement.removeEventListener('mousedown', handleMouseDown);
       chartElement.removeEventListener('mousemove', handleMouseMove);
       chartElement.removeEventListener('mouseup', handleMouseUp);
       chartElement.removeEventListener('mouseleave', handleMouseUp);
-      chartElement.removeEventListener('mousemove', handleCursorChange);
+      chartElement.style.cursor = 'default';
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, [position, currentPrice, tp, sl]);
 
