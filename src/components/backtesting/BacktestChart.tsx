@@ -11,7 +11,9 @@ import {
   ISeriesApi,
   CandlestickSeriesPartialOptions,
   LineStyle,
-  IPriceLine
+  IPriceLine,
+  CandlestickSeries,
+  LineSeries,
 } from 'lightweight-charts';
 
 export type PositionType = 'long' | 'short' | null;
@@ -133,7 +135,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       },
     });
 
-    const candlestickSeries = chart.addSeries('Candlestick' as any, {
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderUpColor: '#10b981',
@@ -143,10 +145,9 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     });
 
     // Add SMA indicator
-    const smaSeries = chart.addSeries('Line' as any, {
+    const smaSeries = chart.addSeries(LineSeries, {
       color: '#2962FF',
       lineWidth: 2,
-      title: 'SMA 20',
     });
 
     const chartData = generateCandlestickData(startDate, timeframe);
