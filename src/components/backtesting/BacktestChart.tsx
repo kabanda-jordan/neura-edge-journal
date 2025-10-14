@@ -123,8 +123,14 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const [showRSI, setShowRSI] = useState(false);
   const [rsiPeriod, setRsiPeriod] = useState(14);
   const [showMACD, setShowMACD] = useState(false);
+  const [macdFast, setMacdFast] = useState(12);
+  const [macdSlow, setMacdSlow] = useState(26);
+  const [macdSignal, setMacdSignal] = useState(9);
   const [showBollinger, setShowBollinger] = useState(false);
   const [bollingerPeriod, setBollingerPeriod] = useState(20);
+  const [showVolume, setShowVolume] = useState(false);
+  const [showStochastic, setShowStochastic] = useState(false);
+  const [stochPeriod, setStochPeriod] = useState(14);
   
   // Drawing tools
   const [showDrawingTools, setShowDrawingTools] = useState(false);
@@ -328,6 +334,51 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     }
     
     return { upper, lower };
+  };
+
+  const calculateMACD = (data: Candle[], fastPeriod: number, slowPeriod: number, signalPeriod: number): { macd: LineData[], signal: LineData[] } => {
+    const fastEMA = calculateEMA(data, fastPeriod);
+    const slowEMA = calculateEMA(data, slowPeriod);
+    const macdLine: LineData[] = [];
+    
+    for (let i = 0; i < Math.min(fastEMA.length, slowEMA.length); i++) {
+      macdLine.push({
+        time: fastEMA[i].time,
+        value: (fastEMA[i].value as number) - (slowEMA[i].value as number)
+      });
+    }
+    
+    // Calculate signal line (EMA of MACD)
+    const signalLine: LineData[] = [];
+    const multiplier = 2 / (signalPeriod + 1);
+    let ema = macdLine.slice(0, signalPeriod).reduce((acc, d) => acc + (d.value as number), 0) / signalPeriod;
+    
+    for (let i = signalPeriod - 1; i < macdLine.length; i++) {
+      if (i === signalPeriod - 1) {
+        signalLine.push({ time: macdLine[i].time, value: ema });
+      } else {
+        ema = ((macdLine[i].value as number) - ema) * multiplier + ema;
+        signalLine.push({ time: macdLine[i].time, value: ema });
+      }
+    }
+    
+    return { macd: macdLine, signal: signalLine };
+  };
+
+  const calculateStochastic = (data: Candle[], period: number): LineData[] => {
+    const result: LineData[] = [];
+    
+    for (let i = period - 1; i < data.length; i++) {
+      const slice = data.slice(i - period + 1, i + 1);
+      const high = Math.max(...slice.map(c => c.high));
+      const low = Math.min(...slice.map(c => c.low));
+      const close = data[i].close;
+      
+      const k = ((close - low) / (high - low)) * 100;
+      result.push({ time: data[i].time as any, value: k });
+    }
+    
+    return result;
   };
 
   // Update chart with visible data based on idx
@@ -750,18 +801,61 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
                   onChange={(e) => setShowBollinger(e.target.checked)}
                   className="w-3 h-3"
                 />
-                <span className="text-xs text-purple-500">Bollinger</span>
+                <span className="text-xs text-purple-500">BB</span>
               </label>
               {showBollinger && (
                 <Input 
                   type="number" 
                   value={bollingerPeriod} 
                   onChange={(e) => setBollingerPeriod(parseInt(e.target.value) || 20)}
-                  className="w-16 h-6 text-xs"
+                  className="w-14 h-6 text-xs"
                   min="2"
                   max="200"
                 />
               )}
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showRSI} 
+                  onChange={(e) => setShowRSI(e.target.checked)}
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-cyan-500">RSI</span>
+              </label>
+              {showRSI && (
+                <Input 
+                  type="number" 
+                  value={rsiPeriod} 
+                  onChange={(e) => setRsiPeriod(parseInt(e.target.value) || 14)}
+                  className="w-14 h-6 text-xs"
+                  min="2"
+                  max="200"
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showMACD} 
+                  onChange={(e) => setShowMACD(e.target.checked)}
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-pink-500">MACD</span>
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showStochastic} 
+                  onChange={(e) => setShowStochastic(e.target.checked)}
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-yellow-500">Stoch</span>
+              </label>
             </div>
             <Button
               variant={showDrawingTools ? "default" : "outline"}
@@ -770,7 +864,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
               className="h-7"
             >
               <TrendingUpDown className="w-4 h-4 mr-1" />
-              Drawing Tools
+              Draw
             </Button>
           </div>
         </div>

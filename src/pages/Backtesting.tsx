@@ -5,8 +5,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, DollarSign } from "lucide-react";
 import BacktestChart, { Trade, PositionType } from "@/components/backtesting/BacktestChart";
+
+const CRYPTO_PAIRS = [
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "XRPUSDT", "SOLUSDT", "DOGEUSDT", "DOTUSDT", "MATICUSDT", "AVAXUSDT"
+];
+
+const FOREX_PAIRS = [
+  "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "EURJPY", "GBPJPY", "EURGBP"
+];
+
+const STOCK_SYMBOLS = [
+  "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "NFLX", "AMD", "PYPL"
+];
 
 const Backtesting = () => {
   const [currentPrice, setCurrentPrice] = useState(0);
@@ -19,10 +32,11 @@ const Backtesting = () => {
   const [speed, setSpeed] = useState(1);
 
   const [settings, setSettings] = useState({
-    symbol: "BTCUSD",
+    symbol: "BTCUSDT",
     timeframe: "60",
     startDate: "2024-01-01",
-    initialBalance: "10000"
+    initialBalance: "10000",
+    market: "crypto" as "crypto" | "forex" | "stocks"
   });
 
   const winningTrades = trades.filter(t => (t.pnl || 0) > 0).length;
@@ -55,15 +69,25 @@ const Backtesting = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                 <div className="space-y-2">
-                  <Label htmlFor="symbol">Symbol</Label>
-                  <Input
-                    id="symbol"
-                    value={settings.symbol}
-                    onChange={(e) => setSettings({...settings, symbol: e.target.value})}
-                    placeholder="BTCUSD"
-                  />
+                  <Label htmlFor="market">Market</Label>
+                  <Select
+                    value={settings.market}
+                    onValueChange={(value: "crypto" | "forex" | "stocks") => {
+                      const defaultSymbol = value === "crypto" ? "BTCUSDT" : value === "forex" ? "EURUSD" : "AAPL";
+                      setSettings({...settings, market: value, symbol: defaultSymbol});
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="crypto">Crypto</SelectItem>
+                      <SelectItem value="forex">Forex</SelectItem>
+                      <SelectItem value="stocks">Stocks</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="timeframe">Timeframe</Label>
@@ -102,6 +126,64 @@ const Backtesting = () => {
                     onChange={(e) => setSettings({...settings, initialBalance: e.target.value})}
                   />
                 </div>
+              </div>
+              
+              {/* Market-specific symbol selector */}
+              <div className="space-y-2">
+                <Label>Select Trading Pair / Symbol</Label>
+                <Tabs value={settings.market} className="w-full">
+                  <TabsContent value="crypto" className="mt-2">
+                    <div className="grid grid-cols-5 gap-2">
+                      {CRYPTO_PAIRS.map((pair) => (
+                        <button
+                          key={pair}
+                          onClick={() => setSettings({...settings, symbol: pair})}
+                          className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                            settings.symbol === pair
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary hover:bg-secondary/80'
+                          }`}
+                        >
+                          {pair}
+                        </button>
+                      ))}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="forex" className="mt-2">
+                    <div className="grid grid-cols-5 gap-2">
+                      {FOREX_PAIRS.map((pair) => (
+                        <button
+                          key={pair}
+                          onClick={() => setSettings({...settings, symbol: pair})}
+                          className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                            settings.symbol === pair
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary hover:bg-secondary/80'
+                          }`}
+                        >
+                          {pair}
+                        </button>
+                      ))}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="stocks" className="mt-2">
+                    <div className="grid grid-cols-5 gap-2">
+                      {STOCK_SYMBOLS.map((symbol) => (
+                        <button
+                          key={symbol}
+                          onClick={() => setSettings({...settings, symbol})}
+                          className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                            settings.symbol === symbol
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary hover:bg-secondary/80'
+                          }`}
+                        >
+                          {symbol}
+                        </button>
+                      ))}
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             </CardContent>
           </Card>
