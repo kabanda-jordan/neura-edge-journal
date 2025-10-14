@@ -7,6 +7,10 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import Blog from "./pages/Blog";
+import Help from "./pages/Help";
+import Docs from "./pages/Docs";
+import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +24,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/docs" element={<Docs />} />
+          <Route path="/community" element={<Community />} />
           <Route 
             path="/dashboard/*" 
             element={
