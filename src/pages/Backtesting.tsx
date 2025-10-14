@@ -196,6 +196,7 @@ const Backtesting = () => {
                 timeframe={settings.timeframe}
                 startDate={settings.startDate}
                 initialBalance={parseFloat(settings.initialBalance)}
+                market={settings.market}
                 onStateChange={(state) => {
                   setCurrentTime(state.currentTime);
                   setCurrentPrice(state.currentPrice);

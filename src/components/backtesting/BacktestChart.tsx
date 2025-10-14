@@ -2,14 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack } from "lucide-react";
-
-// Extend Window interface for TradingView
-declare global {
-  interface Window {
-    TradingView: any;
-  }
-}
+import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind } from "lucide-react";
+import { createChart, IChartApi, CandlestickData, UTCTimestamp, CandlestickSeries } from 'lightweight-charts';
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -41,27 +35,37 @@ interface BacktestChartProps {
   }) => void;
 }
 
-// Map symbol to TradingView format
-const mapSymbolToTradingView = (symbol: string, market: string): string => {
-  if (market === 'crypto') {
-    return `BINANCE:${symbol.replace('/', '')}`;
-  } else if (market === 'forex') {
-    return `FX:${symbol.replace('/', '')}`;
-  } else {
-    return `NASDAQ:${symbol}`;
-  }
-};
-
-const mapTimeframe = (tf: string): string => {
-  const map: Record<string, string> = {
-    '1m': '1',
-    '5m': '5',
-    '15m': '15',
-    '1h': '60',
-    '4h': '240',
-    '1d': 'D'
+// Generate sample candlestick data
+const generateCandlestickData = (startDate: string, timeframe: string): CandlestickData[] => {
+  const data: CandlestickData[] = [];
+  let currentTime = new Date(startDate).getTime() / 1000;
+  
+  const timeframeMinutes: Record<string, number> = {
+    '1m': 1, '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440
   };
-  return map[tf] || '60';
+  const minutes = timeframeMinutes[timeframe] || 60;
+  
+  let price = 50000;
+  for (let i = 0; i < 500; i++) {
+    const open = price;
+    const change = (Math.random() - 0.5) * price * 0.02;
+    const close = open + change;
+    const high = Math.max(open, close) + Math.random() * price * 0.01;
+    const low = Math.min(open, close) - Math.random() * price * 0.01;
+    
+    data.push({
+      time: currentTime as UTCTimestamp,
+      open,
+      high,
+      low,
+      close
+    });
+    
+    price = close;
+    currentTime += minutes * 60;
+  }
+  
+  return data;
 };
 
 const BacktestChart: React.FC<BacktestChartProps> = ({ 
@@ -72,8 +76,9 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
   market,
   onStateChange 
 }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const tvWidgetRef = useRef<any>(null);
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const candlestickSeriesRef = useRef<any>(null);
   const { toast } = useToast();
 
   // Backtesting state
@@ -89,60 +94,58 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
   const [balance, setBalance] = useState<number>(initialBalance);
   const [trades, setTrades] = useState<Trade[]>([]);
 
-  // Initialize TradingView widget
+  // Initialize lightweight chart
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!chartContainerRef.current) return;
 
-    const tvSymbol = mapSymbolToTradingView(symbol, market);
-    const tvTimeframe = mapTimeframe(timeframe);
+    const chart = createChart(chartContainerRef.current, {
+      width: chartContainerRef.current.clientWidth,
+      height: 600,
+      layout: {
+        background: { color: '#0a0a0a' },
+        textColor: '#9CA3AF',
+      },
+      grid: {
+        vertLines: { color: '#1F2937' },
+        horzLines: { color: '#1F2937' },
+      },
+      timeScale: {
+        borderColor: '#374151',
+        timeVisible: true,
+      },
+      rightPriceScale: {
+        borderColor: '#374151',
+      },
+    });
 
-    // Load TradingView script
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/tv.js';
-    script.async = true;
-    script.onload = () => {
-      if (window.TradingView && containerRef.current) {
-        tvWidgetRef.current = new window.TradingView.widget({
-          container_id: 'tv-chart-container',
-          autosize: true,
-          symbol: tvSymbol,
-          interval: tvTimeframe,
-          timezone: 'Etc/UTC',
-          theme: 'dark',
-          style: '1',
-          locale: 'en',
-          toolbar_bg: '#0a0a0a',
-          enable_publishing: false,
-          hide_side_toolbar: false,
-          allow_symbol_change: true,
-          studies: ['STD;SMA'],
-          disabled_features: ['use_localstorage_for_settings'],
-          enabled_features: ['study_templates'],
-          loading_screen: { backgroundColor: '#0a0a0a' },
-          overrides: {
-            'mainSeriesProperties.candleStyle.upColor': '#10b981',
-            'mainSeriesProperties.candleStyle.downColor': '#ef4444',
-            'mainSeriesProperties.candleStyle.borderUpColor': '#10b981',
-            'mainSeriesProperties.candleStyle.borderDownColor': '#ef4444',
-            'mainSeriesProperties.candleStyle.wickUpColor': '#10b981',
-            'mainSeriesProperties.candleStyle.wickDownColor': '#ef4444',
-          }
-        });
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderUpColor: '#10b981',
+      borderDownColor: '#ef4444',
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    });
+
+    const chartData = generateCandlestickData(startDate, timeframe);
+    candlestickSeries.setData(chartData);
+
+    chartRef.current = chart;
+    candlestickSeriesRef.current = candlestickSeries;
+
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       }
     };
 
-    document.head.appendChild(script);
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      if (tvWidgetRef.current && tvWidgetRef.current.remove) {
-        tvWidgetRef.current.remove();
-        tvWidgetRef.current = null;
-      }
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
     };
-  }, [symbol, timeframe, market]);
+  }, [symbol, timeframe, startDate]);
 
   // Simulated price updates for backtesting
   useEffect(() => {
@@ -283,8 +286,8 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
 
   return (
     <div className="relative w-full rounded-lg bg-card overflow-hidden border border-border">
-      {/* TradingView Chart Container */}
-      <div id="tv-chart-container" ref={containerRef} className="w-full h-[600px]" />
+      {/* Chart Container */}
+      <div ref={chartContainerRef} className="w-full h-[600px]" />
 
       {/* Overlay controls */}
       <div className="absolute inset-0 z-10 flex flex-col justify-between p-3 pointer-events-none">
