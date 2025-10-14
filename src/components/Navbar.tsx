@@ -10,7 +10,7 @@ import {
 import { Menu, X, ChevronDown, TrendingUp, BookOpen, Target, Zap, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import trademindLogo from "@/assets/trademind-logo.png";
+import logo from "@/assets/logo.png";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Navbar = () => {
@@ -63,7 +63,7 @@ export const Navbar = () => {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 hover:scale-105 transition-transform">
-            <img src={trademindLogo} alt="Trademind" className="w-10 h-10" />
+            <img src={logo} alt="Trademind" className="w-10 h-10" />
             <span className="text-2xl font-bold text-gradient font-display tracking-wider">TRADEMIND</span>
           </Link>
 
