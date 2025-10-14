@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import { Overview } from "./dashboard/Overview";
 import { Journal } from "./dashboard/Journal";
 import { Analytics } from "./dashboard/Analytics";
@@ -32,6 +33,8 @@ const Dashboard = () => {
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
+      
+      <ChatSidebar />
     </div>
   );
 };

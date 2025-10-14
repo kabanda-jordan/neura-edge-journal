@@ -11,6 +11,7 @@ import { Menu, X, ChevronDown, TrendingUp, BookOpen, Target, Zap, ExternalLink }
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import trademindLogo from "@/assets/trademind-logo.png";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -143,7 +144,8 @@ export const Navbar = () => {
           </div>
 
           {/* Desktop CTA */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2">
+            <ThemeToggle />
             {session ? (
               <>
                 <Link to="/dashboard">
