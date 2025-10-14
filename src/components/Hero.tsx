@@ -50,13 +50,15 @@ export const Hero = () => {
                 <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="text-lg px-8 py-6 border-primary/50 text-primary hover:bg-primary/10"
-            >
-              Watch Demo
-            </Button>
+            <Link to="/about">
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="text-lg px-8 py-6 border-primary/50 text-primary hover:bg-primary/10"
+              >
+                Learn More
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

@@ -11,6 +11,10 @@ import Blog from "./pages/Blog";
 import Help from "./pages/Help";
 import Docs from "./pages/Docs";
 import Community from "./pages/Community";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import Legal from "./pages/Legal";
+import Backtesting from "./pages/Backtesting";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +32,10 @@ const App = () => (
           <Route path="/help" element={<Help />} />
           <Route path="/docs" element={<Docs />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/legal" element={<Legal />} />
+          <Route path="/backtesting" element={<Backtesting />} />
           <Route 
             path="/dashboard/*" 
             element={

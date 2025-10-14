@@ -13,6 +13,8 @@ const brokers = [
   { name: "NinjaTrader", logo: "🥷" },
   { name: "ThinkOrSwim", logo: "💭" },
   { name: "MetaTrader 4/5", logo: "📉" },
+  { name: "Binance", logo: "🪙" },
+  { name: "Bybit", logo: "💱" },
 ];
 
 export const SupportedBrokers = () => {

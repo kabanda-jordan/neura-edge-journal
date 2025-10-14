@@ -105,7 +105,7 @@ export const Navbar = () => {
 
             {/* Discord */}
             <a
-              href="https://discord.gg/trademind"
+              href="https://discord.gg/R76uPD2n"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-primary/5"
@@ -224,7 +224,7 @@ export const Navbar = () => {
                 Supported Brokers
               </Link>
               <a
-                href="https://discord.gg/trademind"
+                href="https://discord.gg/R76uPD2n"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-primary/5 transition-colors rounded-lg"

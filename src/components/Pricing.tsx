@@ -9,7 +9,7 @@ const plans = [
     price: "$0",
     description: "Perfect for getting started",
     features: [
-      "Up to 50 trades per month",
+      "Up to 15 trades per month",
       "Basic analytics & reports",
       "Manual trade entry",
       "7-day trade history",
@@ -20,7 +20,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "$29",
+    price: "$3.99",
     description: "For serious traders",
     features: [
       "Unlimited trades",
@@ -34,23 +34,6 @@ const plans = [
     ],
     cta: "Start Free Trial",
     popular: true,
-  },
-  {
-    name: "Team",
-    price: "$99",
-    description: "For trading groups",
-    features: [
-      "Everything in Pro",
-      "Up to 10 team members",
-      "Shared playbooks & strategies",
-      "Team performance tracking",
-      "Mentor mode access",
-      "Custom branding",
-      "API access",
-      "Dedicated support",
-    ],
-    cta: "Contact Sales",
-    popular: false,
   },
 ];
 

@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Clock, ArrowRight } from "lucide-react";
+import { Calendar, Clock, ArrowRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const blogPosts = [
@@ -9,22 +9,33 @@ const blogPosts = [
     title: "10 Common Trading Mistakes and How to Avoid Them",
     excerpt: "Learn from the most common pitfalls that traders face and discover strategies to overcome them.",
     category: "Trading Psychology",
-    date: "Dec 10, 2024",
-    readTime: "5 min read",
+    date: "Jan 15, 2025",
+    readTime: "8 min read",
+    link: "https://www.ig.com/en/trading-strategies/top-10-common-trading-mistakes-and-how-to-avoid-them-190123",
   },
   {
-    title: "The Power of Trading Journals: A Complete Guide",
+    title: "The Power of Trading Journals: Key to Consistent Success",
     excerpt: "Why every successful trader keeps a detailed journal and how you can use yours to improve performance.",
     category: "Education",
-    date: "Dec 8, 2024",
-    readTime: "7 min read",
+    date: "Jan 12, 2025",
+    readTime: "6 min read",
+    link: "http://tradingview.com/chart/GBPUSD/aq9Q9adz-The-Power-of-a-Trading-Journal-Key-to-Consistent-Success/",
   },
   {
     title: "Using AI to Analyze Your Trading Patterns",
     excerpt: "Discover how artificial intelligence can help identify hidden patterns in your trading behavior.",
     category: "Technology",
-    date: "Dec 5, 2024",
-    readTime: "6 min read",
+    date: "Jan 8, 2025",
+    readTime: "10 min read",
+    link: "https://docs.google.com/document/d/18ZCLv1YlKlwhhicZ8Iw3Y8DLwyLMB4xAjP32tNly2EA/edit?usp=sharing",
+  },
+  {
+    title: "About TradeMind: Our Story and Mission",
+    excerpt: "Learn about how TradeMind was founded to help traders succeed through intelligent journaling and AI-powered analytics.",
+    category: "Company",
+    date: "Jan 5, 2025",
+    readTime: "5 min read",
+    link: "/about",
   },
 ];
 
@@ -67,10 +78,20 @@ const Blog = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="ghost" className="group/btn text-primary">
-                    Read More 
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                  </Button>
+                  <a 
+                    href={post.link}
+                    target={post.link.startsWith('http') ? "_blank" : undefined}
+                    rel={post.link.startsWith('http') ? "noopener noreferrer" : undefined}
+                  >
+                    <Button variant="ghost" className="group/btn text-primary">
+                      Read More 
+                      {post.link.startsWith('http') ? (
+                        <ExternalLink className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                      ) : (
+                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                      )}
+                    </Button>
+                  </a>
                 </CardContent>
               </Card>
             ))}
