@@ -1,10 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack, Activity, TrendingUpDown } from "lucide-react";
-import { createChart, IChartApi, ISeriesApi, ColorType, CandlestickSeries, LineSeries, IPriceLine, LineData } from 'lightweight-charts';
-import { ChartDrawingTools } from "./ChartDrawingTools";
+import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack } from "lucide-react";
+
+// Extend Window interface for TradingView
+declare global {
+  interface Window {
+    TradingView: any;
+  }
+}
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -13,16 +18,17 @@ export interface Trade {
   type: 'long' | 'short';
   entryPrice: number;
   exitPrice?: number;
-  entryTime: number; // unix seconds
-  exitTime?: number; // unix seconds
+  entryTime: number;
+  exitTime?: number;
   pnl?: number;
 }
 
 interface BacktestChartProps {
-  symbol: string; // e.g., BTCUSD or BTCUSDT
-  timeframe: string; // '1','5','15','60','240','D'
-  startDate: string; // YYYY-MM-DD
+  symbol: string;
+  timeframe: string;
+  startDate: string;
   initialBalance: number;
+  market: string;
   onStateChange?: (state: {
     currentTime: number;
     currentPrice: number;
@@ -35,75 +41,47 @@ interface BacktestChartProps {
   }) => void;
 }
 
-const BINANCE_BASE = 'https://api.binance.com';
-
-function mapSymbolToBinance(symbol: string): string {
-  const s = symbol.replace(/[^a-zA-Z]/g, '').toUpperCase();
-  if (s.endsWith('USDT')) return s;
-  if (s.endsWith('USD')) return s.replace(/USD$/, 'USDT');
-  return s + 'USDT';
-}
-
-function mapTimeframe(tf: string): string {
-  switch (tf) {
-    case '1': return '1m';
-    case '5': return '5m';
-    case '15': return '15m';
-    case '60': return '1h';
-    case '240': return '4h';
-    case 'D': return '1d';
-    default: return '1h';
+// Map symbol to TradingView format
+const mapSymbolToTradingView = (symbol: string, market: string): string => {
+  if (market === 'crypto') {
+    return `BINANCE:${symbol.replace('/', '')}`;
+  } else if (market === 'forex') {
+    return `FX:${symbol.replace('/', '')}`;
+  } else {
+    return `NASDAQ:${symbol}`;
   }
-}
-
-interface Candle { time: number; open: number; high: number; low: number; close: number; }
-
-const fetchKlines = async (symbol: string, interval: string, startTimeMs: number, maxCandles = 1500): Promise<Candle[]> => {
-  const result: Candle[] = [];
-  let from = startTimeMs;
-  while (result.length < maxCandles) {
-    const url = `${BINANCE_BASE}/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${from}&limit=1000`;
-    const res = await fetch(url);
-    if (!res.ok) break;
-    const data: any[] = await res.json();
-    if (!Array.isArray(data) || data.length === 0) break;
-    for (const k of data) {
-      const openTime = k[0];
-      const open = parseFloat(k[1]);
-      const high = parseFloat(k[2]);
-      const low = parseFloat(k[3]);
-      const close = parseFloat(k[4]);
-      result.push({ time: Math.floor(openTime / 1000), open, high, low, close });
-    }
-    const last = data[data.length - 1];
-    from = last[0] + 1; // next ms after last open time
-    if (data.length < 1000) break;
-  }
-  return result;
 };
 
-const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startDate, initialBalance, onStateChange }) => {
+const mapTimeframe = (tf: string): string => {
+  const map: Record<string, string> = {
+    '1m': '1',
+    '5m': '5',
+    '15m': '15',
+    '1h': '60',
+    '4h': '240',
+    '1d': 'D'
+  };
+  return map[tf] || '60';
+};
+
+const BacktestChart: React.FC<BacktestChartProps> = ({ 
+  symbol, 
+  timeframe, 
+  startDate, 
+  initialBalance, 
+  market,
+  onStateChange 
+}) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const tpLineRef = useRef<IPriceLine | null>(null);
-  const slLineRef = useRef<IPriceLine | null>(null);
-  const smaSeriesRef = useRef<any>(null);
-  const emaSeriesRef = useRef<any>(null);
-  const rsiSeriesRef = useRef<any>(null);
-  const macdSeriesRef = useRef<any>(null);
-  const macdSignalSeriesRef = useRef<any>(null);
-  const bollingerUpperRef = useRef<any>(null);
-  const bollingerLowerRef = useRef<any>(null);
+  const tvWidgetRef = useRef<any>(null);
   const { toast } = useToast();
 
-  // Replay and trading state
-  const [data, setData] = useState<Candle[]>([]);
-  const [idx, setIdx] = useState(1);
+  // Backtesting state
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(2); // multiplier
-  const timerRef = useRef<number | null>(null);
+  const [speed, setSpeed] = useState(2);
+  const [currentPrice, setCurrentPrice] = useState(50000);
 
+  // Position and trading state
   const [position, setPosition] = useState<PositionType>(null);
   const [entryPrice, setEntryPrice] = useState<number | null>(null);
   const [tp, setTp] = useState<number | null>(null);
@@ -111,517 +89,110 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const [balance, setBalance] = useState<number>(initialBalance);
   const [trades, setTrades] = useState<Trade[]>([]);
 
-  // TP/SL drag state
-  const [dragging, setDragging] = useState(false);
-  const [dragTarget, setDragTarget] = useState<'tp' | 'sl' | null>(null);
-
-  // Indicators state
-  const [showSMA, setShowSMA] = useState(false);
-  const [smaPeriod, setSmaPeriod] = useState(20);
-  const [showEMA, setShowEMA] = useState(false);
-  const [emaPeriod, setEmaPeriod] = useState(12);
-  const [showRSI, setShowRSI] = useState(false);
-  const [rsiPeriod, setRsiPeriod] = useState(14);
-  const [showMACD, setShowMACD] = useState(false);
-  const [macdFast, setMacdFast] = useState(12);
-  const [macdSlow, setMacdSlow] = useState(26);
-  const [macdSignal, setMacdSignal] = useState(9);
-  const [showBollinger, setShowBollinger] = useState(false);
-  const [bollingerPeriod, setBollingerPeriod] = useState(20);
-  const [showVolume, setShowVolume] = useState(false);
-  const [showStochastic, setShowStochastic] = useState(false);
-  const [stochPeriod, setStochPeriod] = useState(14);
-  
-  // Drawing tools
-  const [showDrawingTools, setShowDrawingTools] = useState(false);
-
-  const mappedSymbol = useMemo(() => {
-    const s = symbol.replace(/[^a-zA-Z]/g, '').toUpperCase();
-    return s.endsWith('USDT') ? s : s.endsWith('USD') ? s : s + 'USD';
-  }, [symbol]);
-  
-  const mappedTf = useMemo(() => {
-    const tfMap: Record<string, string> = { '1': '1', '5': '5', '15': '15', '60': '60', '240': '240', 'D': 'D' };
-    return tfMap[timeframe] || '60';
-  }, [timeframe]);
-
-  const currentCandle = data[Math.max(0, Math.min(idx - 1, data.length - 1))];
-  const currentPrice = currentCandle?.close ?? 0;
-  const currentTime = currentCandle?.time ?? Math.floor(new Date(startDate).getTime() / 1000);
-
-  // Load historical data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const binanceSymbol = mapSymbolToBinance(symbol);
-        const binanceInterval = mapTimeframe(timeframe);
-        const startMs = new Date(startDate).getTime();
-        
-        toast({ title: 'Loading Data...', description: `Fetching ${binanceSymbol} ${binanceInterval} candles` });
-        
-        const candles = await fetchKlines(binanceSymbol, binanceInterval, startMs, 1500);
-        
-        if (candles.length === 0) {
-          toast({ title: 'No Data', description: 'No historical data found for this period', variant: 'destructive' });
-          return;
-        }
-        
-        setData(candles);
-        setIdx(50); // Start from candle 50 to show some history
-        toast({ title: 'Data Loaded', description: `${candles.length} candles ready to replay` });
-      } catch (error) {
-        console.error('Error loading data:', error);
-        toast({ title: 'Error', description: 'Failed to load historical data', variant: 'destructive' });
-      }
-    };
-    
-    loadData();
-  }, [symbol, timeframe, startDate]);
-
-  // Initialize chart
+  // Initialize TradingView widget
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const chart = createChart(containerRef.current, {
-      width: containerRef.current.clientWidth,
-      height: 600,
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#9ca3af',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      },
-      timeScale: {
-        borderColor: '#374151',
-        timeVisible: true,
-        secondsVisible: false,
-        shiftVisibleRangeOnNewBar: false,
-      },
-      rightPriceScale: {
-        borderColor: '#374151',
-      },
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-      handleScale: {
-        axisPressedMouseMove: true,
-        mouseWheel: true,
-        pinch: true,
-      },
-    });
+    const tvSymbol = mapSymbolToTradingView(symbol, market);
+    const tvTimeframe = mapTimeframe(timeframe);
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-    });
-
-    const smaSeries = chart.addSeries(LineSeries, {
-      color: '#3b82f6',
-      lineWidth: 2,
-      title: 'SMA',
-      visible: false,
-    });
-
-    const emaSeries = chart.addSeries(LineSeries, {
-      color: '#f59e0b',
-      lineWidth: 2,
-      title: 'EMA',
-      visible: false,
-    });
-
-    const bollingerUpper = chart.addSeries(LineSeries, {
-      color: '#a855f7',
-      lineWidth: 1,
-      title: 'BB Upper',
-      visible: false,
-    });
-
-    const bollingerLower = chart.addSeries(LineSeries, {
-      color: '#a855f7',
-      lineWidth: 1,
-      title: 'BB Lower',
-      visible: false,
-    });
-
-    chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
-    smaSeriesRef.current = smaSeries;
-    emaSeriesRef.current = emaSeries;
-    bollingerUpperRef.current = bollingerUpper;
-    bollingerLowerRef.current = bollingerLower;
-
-    // Handle resize
-    const handleResize = () => {
-      if (containerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
+    // Load TradingView script
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/tv.js';
+    script.async = true;
+    script.onload = () => {
+      if (window.TradingView && containerRef.current) {
+        tvWidgetRef.current = new window.TradingView.widget({
+          container_id: 'tv-chart-container',
+          autosize: true,
+          symbol: tvSymbol,
+          interval: tvTimeframe,
+          timezone: 'Etc/UTC',
+          theme: 'dark',
+          style: '1',
+          locale: 'en',
+          toolbar_bg: '#0a0a0a',
+          enable_publishing: false,
+          hide_side_toolbar: false,
+          allow_symbol_change: true,
+          studies: ['STD;SMA'],
+          disabled_features: ['use_localstorage_for_settings'],
+          enabled_features: ['study_templates'],
+          loading_screen: { backgroundColor: '#0a0a0a' },
+          overrides: {
+            'mainSeriesProperties.candleStyle.upColor': '#10b981',
+            'mainSeriesProperties.candleStyle.downColor': '#ef4444',
+            'mainSeriesProperties.candleStyle.borderUpColor': '#10b981',
+            'mainSeriesProperties.candleStyle.borderDownColor': '#ef4444',
+            'mainSeriesProperties.candleStyle.wickUpColor': '#10b981',
+            'mainSeriesProperties.candleStyle.wickDownColor': '#ef4444',
+          }
+        });
       }
     };
-    window.addEventListener('resize', handleResize);
+
+    document.head.appendChild(script);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-    };
-  }, []);
-
-  // Calculate indicators
-  const calculateSMA = (data: Candle[], period: number): LineData[] => {
-    const result: LineData[] = [];
-    for (let i = period - 1; i < data.length; i++) {
-      const sum = data.slice(i - period + 1, i + 1).reduce((acc, c) => acc + c.close, 0);
-      result.push({ time: data[i].time as any, value: sum / period });
-    }
-    return result;
-  };
-
-  const calculateEMA = (data: Candle[], period: number): LineData[] => {
-    const result: LineData[] = [];
-    const multiplier = 2 / (period + 1);
-    let ema = data.slice(0, period).reduce((acc, c) => acc + c.close, 0) / period;
-    
-    for (let i = period - 1; i < data.length; i++) {
-      if (i === period - 1) {
-        result.push({ time: data[i].time as any, value: ema });
-      } else {
-        ema = (data[i].close - ema) * multiplier + ema;
-        result.push({ time: data[i].time as any, value: ema });
+      if (tvWidgetRef.current && tvWidgetRef.current.remove) {
+        tvWidgetRef.current.remove();
+        tvWidgetRef.current = null;
       }
-    }
-    return result;
-  };
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, [symbol, timeframe, market]);
 
-  const calculateRSI = (data: Candle[], period: number): LineData[] => {
-    const result: LineData[] = [];
-    const changes: number[] = [];
-    
-    for (let i = 1; i < data.length; i++) {
-      changes.push(data[i].close - data[i - 1].close);
-    }
-    
-    for (let i = period; i < changes.length; i++) {
-      const recentChanges = changes.slice(i - period, i);
-      const gains = recentChanges.filter(c => c > 0).reduce((a, b) => a + b, 0) / period;
-      const losses = Math.abs(recentChanges.filter(c => c < 0).reduce((a, b) => a + b, 0)) / period;
-      const rs = gains / (losses || 1);
-      const rsi = 100 - (100 / (1 + rs));
-      result.push({ time: data[i + 1].time as any, value: rsi });
-    }
-    
-    return result;
-  };
+  // Simulated price updates for backtesting
+  useEffect(() => {
+    if (!isPlaying) return;
 
-  const calculateBollinger = (data: Candle[], period: number): { upper: LineData[], lower: LineData[] } => {
-    const sma = calculateSMA(data, period);
-    const upper: LineData[] = [];
-    const lower: LineData[] = [];
-    
-    for (let i = period - 1; i < data.length; i++) {
-      const slice = data.slice(i - period + 1, i + 1);
-      const mean = slice.reduce((acc, c) => acc + c.close, 0) / period;
-      const variance = slice.reduce((acc, c) => acc + Math.pow(c.close - mean, 2), 0) / period;
-      const stdDev = Math.sqrt(variance);
-      
-      upper.push({ time: data[i].time as any, value: mean + (stdDev * 2) });
-      lower.push({ time: data[i].time as any, value: mean - (stdDev * 2) });
-    }
-    
-    return { upper, lower };
-  };
-
-  const calculateMACD = (data: Candle[], fastPeriod: number, slowPeriod: number, signalPeriod: number): { macd: LineData[], signal: LineData[] } => {
-    const fastEMA = calculateEMA(data, fastPeriod);
-    const slowEMA = calculateEMA(data, slowPeriod);
-    const macdLine: LineData[] = [];
-    
-    for (let i = 0; i < Math.min(fastEMA.length, slowEMA.length); i++) {
-      macdLine.push({
-        time: fastEMA[i].time,
-        value: (fastEMA[i].value as number) - (slowEMA[i].value as number)
+    const interval = setInterval(() => {
+      setCurrentPrice(prev => {
+        const change = (Math.random() - 0.5) * (prev * 0.002); // 0.2% volatility
+        return Math.max(1000, prev + change);
       });
-    }
-    
-    // Calculate signal line (EMA of MACD)
-    const signalLine: LineData[] = [];
-    const multiplier = 2 / (signalPeriod + 1);
-    let ema = macdLine.slice(0, signalPeriod).reduce((acc, d) => acc + (d.value as number), 0) / signalPeriod;
-    
-    for (let i = signalPeriod - 1; i < macdLine.length; i++) {
-      if (i === signalPeriod - 1) {
-        signalLine.push({ time: macdLine[i].time, value: ema });
-      } else {
-        ema = ((macdLine[i].value as number) - ema) * multiplier + ema;
-        signalLine.push({ time: macdLine[i].time, value: ema });
-      }
-    }
-    
-    return { macd: macdLine, signal: signalLine };
-  };
+    }, 1000 / speed);
 
-  const calculateStochastic = (data: Candle[], period: number): LineData[] => {
-    const result: LineData[] = [];
-    
-    for (let i = period - 1; i < data.length; i++) {
-      const slice = data.slice(i - period + 1, i + 1);
-      const high = Math.max(...slice.map(c => c.high));
-      const low = Math.min(...slice.map(c => c.low));
-      const close = data[i].close;
-      
-      const k = ((close - low) / (high - low)) * 100;
-      result.push({ time: data[i].time as any, value: k });
-    }
-    
-    return result;
-  };
+    return () => clearInterval(interval);
+  }, [isPlaying, speed]);
 
-  // Update chart with visible data based on idx
+  // Auto-close on TP/SL
   useEffect(() => {
-    if (!candleSeriesRef.current || data.length === 0) return;
+    if (!position || entryPrice == null) return;
     
-    // Show data from beginning up to current idx
-    const visibleData = data.slice(0, idx).map(c => ({
-      time: c.time as any,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
-    
-    candleSeriesRef.current.setData(visibleData);
-
-    // Update indicators
-    if (showSMA && smaSeriesRef.current) {
-      const smaData = calculateSMA(data.slice(0, idx), smaPeriod);
-      smaSeriesRef.current.setData(smaData);
-    }
-
-    if (showEMA && emaSeriesRef.current) {
-      const emaData = calculateEMA(data.slice(0, idx), emaPeriod);
-      emaSeriesRef.current.setData(emaData);
-    }
-
-    if (showBollinger && bollingerUpperRef.current && bollingerLowerRef.current) {
-      const bollingerData = calculateBollinger(data.slice(0, idx), bollingerPeriod);
-      bollingerUpperRef.current.setData(bollingerData.upper);
-      bollingerLowerRef.current.setData(bollingerData.lower);
-    }
-    
-    // Auto-scroll to latest candle only during playback
-    if (isPlaying && chartRef.current && visibleData.length > 0) {
-      chartRef.current.timeScale().scrollToPosition(3, false);
-    }
-  }, [idx, data, showSMA, smaPeriod, showEMA, emaPeriod, showBollinger, bollingerPeriod]);
-
-  // Reset state on symbol/timeframe change
-  useEffect(() => {
-    setIsPlaying(false);
-    setTrades([]);
-    setPosition(null);
-    setEntryPrice(null);
-    setTp(null);
-    setSl(null);
-    setBalance(initialBalance);
-  }, [mappedSymbol, mappedTf, initialBalance]);
-
-  // Replay timer - advance candles
-  useEffect(() => {
-    if (!isPlaying || data.length === 0) return;
-    
-    if (idx >= data.length) {
-      setIsPlaying(false);
-      toast({ title: 'Replay Complete', description: 'Reached end of historical data' });
-      return;
-    }
-    
-    const stepMs = Math.max(50, 500 / speed);
-    timerRef.current = window.setInterval(() => {
-      setIdx(prev => {
-        if (prev >= data.length - 1) {
-          setIsPlaying(false);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, stepMs);
-
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    };
-  }, [isPlaying, speed, data.length, idx]);
-
-  // Update indicator visibility
-  useEffect(() => {
-    if (smaSeriesRef.current) {
-      smaSeriesRef.current.applyOptions({ visible: showSMA });
-    }
-    if (emaSeriesRef.current) {
-      emaSeriesRef.current.applyOptions({ visible: showEMA });
-    }
-    if (bollingerUpperRef.current) {
-      bollingerUpperRef.current.applyOptions({ visible: showBollinger });
-    }
-    if (bollingerLowerRef.current) {
-      bollingerLowerRef.current.applyOptions({ visible: showBollinger });
-    }
-  }, [showSMA, showEMA, showBollinger]);
-
-  // Update TP/SL price lines on chart
-  useEffect(() => {
-    if (!candleSeriesRef.current) return;
-
-    // Remove old lines
-    if (tpLineRef.current) {
-      candleSeriesRef.current.removePriceLine(tpLineRef.current);
-      tpLineRef.current = null;
-    }
-    if (slLineRef.current) {
-      candleSeriesRef.current.removePriceLine(slLineRef.current);
-      slLineRef.current = null;
-    }
-
-    // Add new lines if position is active
-    if (position && tp != null && !isNaN(tp)) {
-      tpLineRef.current = candleSeriesRef.current.createPriceLine({
-        price: tp,
-        color: '#10b981',
-        lineWidth: 2,
-        lineStyle: 2,
-        axisLabelVisible: true,
-        title: 'TP',
-      });
-    }
-    if (position && sl != null && !isNaN(sl)) {
-      slLineRef.current = candleSeriesRef.current.createPriceLine({
-        price: sl,
-        color: '#ef4444',
-        lineWidth: 2,
-        lineStyle: 2,
-        axisLabelVisible: true,
-        title: 'SL',
-      });
-    }
-  }, [position, tp, sl]);
-
-  // Enable dragging for TP/SL price lines
-  useEffect(() => {
-    const el = containerRef.current;
-    const series = candleSeriesRef.current;
-    if (!el || !series) return;
-
-    const getY = (e: PointerEvent | MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      return e.clientY - rect.top;
-    };
-
-    const threshold = 6; // px distance to "grab" the line
-
-    const nearestLine = (y: number): 'tp' | 'sl' | null => {
-      if (!position) return null;
-      const tpY = tp != null ? series.priceToCoordinate(tp) : null;
-      const slY = sl != null ? series.priceToCoordinate(sl) : null;
-      let best: { target: 'tp' | 'sl' | null; dist: number } = { target: null, dist: Infinity };
-      if (tpY != null) {
-        const d = Math.abs(y - tpY);
-        if (d < best.dist) best = { target: 'tp', dist: d };
-      }
-      if (slY != null) {
-        const d = Math.abs(y - slY);
-        if (d < best.dist) best = { target: 'sl', dist: d };
-      }
-      return best.dist <= threshold ? best.target : null;
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      const y = getY(e);
-      if (!dragging) {
-        const near = nearestLine(y);
-        (el as HTMLElement).style.cursor = near ? 'ns-resize' : 'default';
-        return;
-      }
-      const price = series.coordinateToPrice(y);
-      if (price == null || isNaN(price)) return;
-      if (dragTarget === 'tp') {
-        setTp(price);
-      } else if (dragTarget === 'sl') {
-        setSl(price);
-      }
-    };
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (!position) return;
-      const y = getY(e);
-      const near = nearestLine(y);
-      if (near) {
-        setDragTarget(near);
-        setDragging(true);
-        e.preventDefault();
-      }
-    };
-
-    const onPointerUp = () => {
-      if (dragging) {
-        setDragging(false);
-        setDragTarget(null);
-        (el as HTMLElement).style.cursor = 'default';
-      }
-    };
-
-    el.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-
-    return () => {
-      el.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      (el as HTMLElement).style.cursor = 'default';
-    };
-  }, [position, tp, sl, dragging, dragTarget]);
-
-  // Auto-close on TP/SL using actual candle data
-  useEffect(() => {
-    if (!position || entryPrice == null || !currentCandle) return;
-    
-    // Check if TP/SL hit based on candle high/low
     if (tp != null) {
-      if (position === 'long' && currentCandle.high >= tp) {
+      if (position === 'long' && currentPrice >= tp) {
         closePosition(tp);
         return;
       }
-      if (position === 'short' && currentCandle.low <= tp) {
+      if (position === 'short' && currentPrice <= tp) {
         closePosition(tp);
         return;
       }
     }
     if (sl != null) {
-      if (position === 'long' && currentCandle.low <= sl) {
+      if (position === 'long' && currentPrice <= sl) {
         closePosition(sl);
         return;
       }
-      if (position === 'short' && currentCandle.high >= sl) {
+      if (position === 'short' && currentPrice >= sl) {
         closePosition(sl);
         return;
       }
     }
-    publishState();
-  }, [idx, position, entryPrice, tp, sl]);
+  }, [currentPrice, position, tp, sl]);
 
-
-  // Publish state up
-  const publishState = () => {
+  // Publish state to parent
+  useEffect(() => {
     let unrealized = 0;
     if (position && entryPrice != null) {
       unrealized = position === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
     }
+    
     onStateChange?.({
-      currentTime,
+      currentTime: Date.now() / 1000,
       currentPrice,
       position,
       entryPrice,
@@ -630,26 +201,30 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       trades,
       speed,
     });
-  };
-
-  useEffect(() => { publishState(); }, [currentPrice, position, entryPrice, balance, trades, speed]);
-
+  }, [currentPrice, position, entryPrice, balance, trades, speed]);
 
   // Trading actions
   const openLong = () => {
-    if (position) { toast({ title: 'Position Active', description: 'Close your current position first', variant: 'destructive' }); return; }
+    if (position) {
+      toast({ title: 'Position Active', description: 'Close your current position first', variant: 'destructive' });
+      return;
+    }
     setPosition('long');
     setEntryPrice(currentPrice);
-    setTp(currentPrice * 1.01);
-    setSl(currentPrice * 0.99);
+    setTp(currentPrice * 1.02);
+    setSl(currentPrice * 0.98);
     toast({ title: 'Long Opened', description: `Entry: $${currentPrice.toFixed(2)}` });
   };
+
   const openShort = () => {
-    if (position) { toast({ title: 'Position Active', description: 'Close your current position first', variant: 'destructive' }); return; }
+    if (position) {
+      toast({ title: 'Position Active', description: 'Close your current position first', variant: 'destructive' });
+      return;
+    }
     setPosition('short');
     setEntryPrice(currentPrice);
-    setTp(currentPrice * 0.99);
-    setSl(currentPrice * 1.01);
+    setTp(currentPrice * 0.98);
+    setSl(currentPrice * 1.02);
     toast({ title: 'Short Opened', description: `Entry: $${currentPrice.toFixed(2)}` });
   };
 
@@ -660,9 +235,21 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     setBalance(b => b + profit);
     setTrades(t => [
       ...t,
-      { id: t.length + 1, type: position, entryPrice, exitPrice, entryTime: currentTime, exitTime: currentTime, pnl: profit }
+      { 
+        id: t.length + 1, 
+        type: position, 
+        entryPrice, 
+        exitPrice, 
+        entryTime: Date.now() / 1000, 
+        exitTime: Date.now() / 1000, 
+        pnl: profit 
+      }
     ]);
-    toast({ title: 'Position Closed', description: `P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, variant: profit >= 0 ? 'default' : 'destructive' });
+    toast({ 
+      title: 'Position Closed', 
+      description: `P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, 
+      variant: profit >= 0 ? 'default' : 'destructive' 
+    });
     setPosition(null);
     setEntryPrice(null);
     setTp(null);
@@ -670,248 +257,126 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   };
 
   // Replay controls
-  const togglePlay = () => {
-    if (data.length === 0) {
-      toast({ title: 'No Data', description: 'Wait for data to load first', variant: 'destructive' });
-      return;
-    }
-    setIsPlaying(p => !p);
-  };
+  const togglePlay = () => setIsPlaying(p => !p);
   
-  const reset = () => { 
-    setIsPlaying(false); 
-    setIdx(50); 
+  const reset = () => {
+    setIsPlaying(false);
     setPosition(null);
     setEntryPrice(null);
     setTp(null);
     setSl(null);
     setBalance(initialBalance);
     setTrades([]);
-    toast({ title: 'Reset', description: 'Replay restarted' });
+    setCurrentPrice(50000);
+    toast({ title: 'Reset', description: 'Backtesting reset' });
   };
-  
-  const skipForward = () => setIdx(v => Math.min(v + 50, data.length - 1));
-  const skipBack = () => setIdx(v => Math.max(v - 50, 50));
-  const incSpeed = () => setSpeed(s => Math.min(s * 2, 16));
-  const decSpeed = () => setSpeed(s => Math.max(s / 2, 0.25));
-  
+
   const updateTp = (value: string) => {
     const num = parseFloat(value);
     if (!isNaN(num) && num > 0) setTp(num);
   };
-  
+
   const updateSl = (value: string) => {
     const num = parseFloat(value);
     if (!isNaN(num) && num > 0) setSl(num);
   };
 
   return (
-    <div className="relative w-full rounded-lg bg-card overflow-hidden">
-      <div ref={containerRef} className="w-full h-[600px] relative">
-        {showDrawingTools && containerRef.current && (
-          <ChartDrawingTools 
-            width={containerRef.current.clientWidth} 
-            height={600}
-          />
-        )}
-      </div>
+    <div className="relative w-full rounded-lg bg-card overflow-hidden border border-border">
+      {/* TradingView Chart Container */}
+      <div id="tv-chart-container" ref={containerRef} className="w-full h-[600px]" />
 
-      {/* Overlay controls inside chart area */}
+      {/* Overlay controls */}
       <div className="absolute inset-0 z-10 flex flex-col justify-between p-3 pointer-events-none">
-        {/* Top-left replay and indicator controls */}
-        <div className="flex items-start gap-3">
-          <div className="pointer-events-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={decSpeed}><Rewind className="w-4 h-4" /></Button>
-          <Button variant="outline" size="sm" onClick={skipBack}><SkipBack className="w-4 h-4" /></Button>
-          <Button variant="outline" size="sm" onClick={togglePlay} className="min-w-[80px]">
-            {isPlaying ? (<><Pause className="w-4 h-4 mr-2" />Pause</>) : (<><Play className="w-4 h-4 mr-2" />Play</>)}
-          </Button>
-          <Button variant="outline" size="sm" onClick={skipForward}><SkipForward className="w-4 h-4" /></Button>
-          <Button variant="outline" size="sm" onClick={incSpeed}><FastForward className="w-4 h-4" /></Button>
-          <Button variant="outline" size="sm" onClick={reset}><RotateCcw className="w-4 h-4" /></Button>
-          <div className="flex items-center gap-2 ml-2">
-            <span className="text-xs text-muted-foreground">Speed:</span>
-            <Input 
-              type="number" 
-              value={speed} 
-              onChange={(e) => setSpeed(Math.max(0.25, Math.min(16, parseFloat(e.target.value) || 1)))}
-              className="w-16 h-7 text-xs"
-              step="0.25"
-              min="0.25"
-              max="16"
-            />
-            <span className="text-xs text-muted-foreground">x</span>
-          </div>
-        </div>
-
-        {/* Indicators panel */}
-        <div className="pointer-events-auto bg-background/80 backdrop-blur rounded px-3 py-2 border border-border max-w-2xl">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs font-semibold">Indicators:</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showSMA} 
-                  onChange={(e) => setShowSMA(e.target.checked)}
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-blue-500">SMA</span>
-              </label>
-              {showSMA && (
-                <Input 
-                  type="number" 
-                  value={smaPeriod} 
-                  onChange={(e) => setSmaPeriod(parseInt(e.target.value) || 20)}
-                  className="w-16 h-6 text-xs"
-                  min="2"
-                  max="200"
-                />
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showEMA} 
-                  onChange={(e) => setShowEMA(e.target.checked)}
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-amber-500">EMA</span>
-              </label>
-              {showEMA && (
-                <Input 
-                  type="number" 
-                  value={emaPeriod} 
-                  onChange={(e) => setEmaPeriod(parseInt(e.target.value) || 12)}
-                  className="w-16 h-6 text-xs"
-                  min="2"
-                  max="200"
-                />
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showBollinger} 
-                  onChange={(e) => setShowBollinger(e.target.checked)}
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-purple-500">BB</span>
-              </label>
-              {showBollinger && (
-                <Input 
-                  type="number" 
-                  value={bollingerPeriod} 
-                  onChange={(e) => setBollingerPeriod(parseInt(e.target.value) || 20)}
-                  className="w-14 h-6 text-xs"
-                  min="2"
-                  max="200"
-                />
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showRSI} 
-                  onChange={(e) => setShowRSI(e.target.checked)}
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-cyan-500">RSI</span>
-              </label>
-              {showRSI && (
-                <Input 
-                  type="number" 
-                  value={rsiPeriod} 
-                  onChange={(e) => setRsiPeriod(parseInt(e.target.value) || 14)}
-                  className="w-14 h-6 text-xs"
-                  min="2"
-                  max="200"
-                />
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showMACD} 
-                  onChange={(e) => setShowMACD(e.target.checked)}
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-pink-500">MACD</span>
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showStochastic} 
-                  onChange={(e) => setShowStochastic(e.target.checked)}
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-yellow-500">Stoch</span>
-              </label>
-            </div>
-            <Button
-              variant={showDrawingTools ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowDrawingTools(!showDrawingTools)}
-              className="h-7"
-            >
-              <TrendingUpDown className="w-4 h-4 mr-1" />
-              Draw
+        {/* Top controls */}
+        <div className="flex items-start justify-between">
+          {/* Left: Replay controls */}
+          <div className="pointer-events-auto flex items-center gap-2 bg-background/90 backdrop-blur rounded px-3 py-2 border border-border">
+            <Button variant="outline" size="sm" onClick={() => setSpeed(s => Math.max(s / 2, 0.25))}>
+              <Rewind className="w-4 h-4" />
             </Button>
+            <Button variant="outline" size="sm" onClick={togglePlay} className="min-w-[80px]">
+              {isPlaying ? (
+                <>
+                  <Pause className="w-4 h-4 mr-2" />
+                  Pause
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Play
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSpeed(s => Math.min(s * 2, 16))}>
+              <FastForward className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={reset}>
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-2 ml-2 border-l border-border pl-2">
+              <span className="text-xs text-muted-foreground">Speed:</span>
+              <Input 
+                type="number" 
+                value={speed} 
+                onChange={(e) => setSpeed(Math.max(0.25, Math.min(16, parseFloat(e.target.value) || 1)))}
+                className="w-16 h-7 text-xs"
+                step="0.25"
+                min="0.25"
+                max="16"
+              />
+              <span className="text-xs text-muted-foreground">x</span>
+            </div>
+          </div>
+
+          {/* Right: Price info */}
+          <div className="pointer-events-none text-right text-xs bg-background/90 backdrop-blur rounded px-3 py-2 border border-border">
+            <div className="font-mono font-bold text-primary text-lg">${currentPrice.toFixed(2)}</div>
+            <div className="text-muted-foreground">{symbol}</div>
           </div>
         </div>
-      </div>
 
-        {/* Bottom-left trading controls */}
-        <div className="pointer-events-auto flex items-center gap-2 flex-wrap">
+        {/* Bottom: Trading controls */}
+        <div className="pointer-events-auto flex items-center gap-2 flex-wrap bg-background/90 backdrop-blur rounded px-3 py-2 border border-border">
           <Button onClick={openLong} disabled={!!position} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
-            <TrendingUp className="w-4 h-4 mr-2" />Long
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Long
           </Button>
           <Button onClick={openShort} disabled={!!position} className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50">
-            <TrendingDown className="w-4 h-4 mr-2" />Short
+            <TrendingDown className="w-4 h-4 mr-2" />
+            Short
           </Button>
           <Button onClick={() => closePosition()} disabled={!position} variant="outline">
-            <Target className="w-4 h-4 mr-2" />Close
+            <Target className="w-4 h-4 mr-2" />
+            Close
           </Button>
+          
           {position && (
-            <div className="ml-4 flex items-center gap-3 text-xs bg-background/80 backdrop-blur rounded px-3 py-2 border border-border">
+            <div className="ml-4 flex items-center gap-3 text-xs border-l border-border pl-4">
               <div className="flex items-center gap-2">
-                <span className="text-green-500">TP:</span>
+                <span className="text-green-500 font-semibold">TP:</span>
                 <Input 
                   type="number" 
                   value={tp || ''} 
                   onChange={(e) => updateTp(e.target.value)}
-                  className="w-24 h-7 text-xs"
+                  className="w-28 h-7 text-xs"
                   step="0.01"
+                  placeholder="Take Profit"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-red-500">SL:</span>
+                <span className="text-red-500 font-semibold">SL:</span>
                 <Input 
                   type="number" 
                   value={sl || ''} 
                   onChange={(e) => updateSl(e.target.value)}
-                  className="w-24 h-7 text-xs"
+                  className="w-28 h-7 text-xs"
                   step="0.01"
+                  placeholder="Stop Loss"
                 />
               </div>
             </div>
           )}
-        </div>
-
-        {/* Top-right info */}
-        <div className="pointer-events-none self-end text-right text-xs bg-background/80 backdrop-blur rounded px-3 py-2 border border-border">
-          <div className="text-muted-foreground">{new Date(currentTime * 1000).toLocaleString()}</div>
-          <div className="font-mono font-bold text-primary text-lg">${currentPrice.toFixed(2)}</div>
-          <div className="text-muted-foreground mt-1">Candle {idx} / {data.length}</div>
         </div>
       </div>
     </div>
