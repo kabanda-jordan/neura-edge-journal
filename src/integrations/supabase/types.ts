@@ -50,6 +50,48 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_submissions: {
+        Row: {
+          amount_usd: number
+          created_at: string
+          cryptocurrency: string
+          email: string
+          id: string
+          notes: string | null
+          plan_name: string
+          status: string
+          transaction_hash: string
+          user_id: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          amount_usd: number
+          created_at?: string
+          cryptocurrency: string
+          email: string
+          id?: string
+          notes?: string | null
+          plan_name: string
+          status?: string
+          transaction_hash: string
+          user_id?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          amount_usd?: number
+          created_at?: string
+          cryptocurrency?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          plan_name?: string
+          status?: string
+          transaction_hash?: string
+          user_id?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       playbooks: {
         Row: {
           avg_profit: number | null

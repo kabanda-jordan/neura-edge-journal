@@ -1,7 +1,9 @@
-import { Check } from "lucide-react";
+import { useState } from "react";
+import { Check, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { CryptoPaymentDialog } from "./CryptoPaymentDialog";
 
 const plans = [
   {
@@ -38,6 +40,14 @@ const plans = [
 ];
 
 export const Pricing = () => {
+  const [selectedPlan, setSelectedPlan] = useState<{ name: string; price: string } | null>(null);
+  const [cryptoDialogOpen, setCryptoDialogOpen] = useState(false);
+
+  const handleCryptoPayment = (plan: { name: string; price: string }) => {
+    setSelectedPlan(plan);
+    setCryptoDialogOpen(true);
+  };
+
   return (
     <section id="pricing" className="py-24 relative overflow-hidden">
       {/* Background glow effects */}
@@ -92,18 +102,29 @@ export const Pricing = () => {
                   ))}
                 </ul>
                 
-                <Link to="/auth" className="block">
+                <div className="space-y-3">
+                  <Link to="/auth" className="block">
+                    <Button
+                      className={`w-full ${
+                        plan.popular
+                          ? "bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background"
+                          : "border-primary/30 hover:bg-primary/10"
+                      }`}
+                      variant={plan.popular ? "default" : "outline"}
+                    >
+                      {plan.cta}
+                    </Button>
+                  </Link>
+                  
                   <Button
-                    className={`w-full ${
-                      plan.popular
-                        ? "bg-gradient-to-r from-primary to-accent hover:opacity-90 text-background"
-                        : "border-primary/30 hover:bg-primary/10"
-                    }`}
-                    variant={plan.popular ? "default" : "outline"}
+                    onClick={() => handleCryptoPayment(plan)}
+                    variant="outline"
+                    className="w-full border-primary/20 hover:border-primary/40 hover:bg-primary/5 group transition-all"
                   >
-                    {plan.cta}
+                    <Wallet className="w-4 h-4 mr-2 group-hover:text-primary transition-colors" />
+                    Pay with Crypto
                   </Button>
-                </Link>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -113,6 +134,14 @@ export const Pricing = () => {
           All plans include 14-day free trial. No credit card required. Cancel anytime.
         </p>
       </div>
+
+      {selectedPlan && (
+        <CryptoPaymentDialog
+          open={cryptoDialogOpen}
+          onOpenChange={setCryptoDialogOpen}
+          plan={selectedPlan}
+        />
+      )}
     </section>
   );
 };
