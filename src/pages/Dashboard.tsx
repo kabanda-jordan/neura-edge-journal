@@ -12,6 +12,7 @@ import { Goals } from "./dashboard/Goals";
 import { Learning } from "./dashboard/Learning";
 import { Profile } from "./dashboard/Profile";
 import { Settings } from "./dashboard/Settings";
+import { Subscription } from "./dashboard/Subscription";
 
 const Dashboard = () => {
   return (
@@ -31,6 +32,7 @@ const Dashboard = () => {
           <Route path="/learning" element={<Learning />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/subscription" element={<Subscription />} />
         </Routes>
       </main>
       
