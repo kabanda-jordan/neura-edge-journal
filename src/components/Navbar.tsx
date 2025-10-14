@@ -34,10 +34,10 @@ export const Navbar = () => {
   }, []);
 
   const featuresDropdown = [
-    { name: "Automated Journaling", icon: BookOpen, path: "/#features" },
-    { name: "Performance Analytics", icon: TrendingUp, path: "/#features" },
-    { name: "AI Insights", icon: Zap, path: "/#features" },
-    { name: "Trading Playbooks", icon: Target, path: "/#features" },
+    { name: "Automated Journaling", icon: BookOpen, path: "/dashboard/journal" },
+    { name: "Performance Analytics", icon: TrendingUp, path: "/dashboard/performance" },
+    { name: "AI Insights", icon: Zap, path: "/dashboard/insights" },
+    { name: "Trading Playbooks", icon: Target, path: "/dashboard/playbooks" },
   ];
 
   const resourcesDropdown = [
@@ -124,7 +124,7 @@ export const Navbar = () => {
 
             {/* Pricing */}
             <Link
-              to="/#pricing"
+              to="/pricing"
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-primary/5"
             >
               Pricing
@@ -248,7 +248,7 @@ export const Navbar = () => {
                 <ExternalLink className="w-3 h-3" />
               </a>
               <Link
-                to="/#pricing"
+                to="/pricing"
                 onClick={() => setIsOpen(false)}
                 className="block px-4 py-3 text-sm hover:bg-primary/5 transition-colors rounded-lg"
               >
