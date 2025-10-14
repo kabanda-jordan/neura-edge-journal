@@ -389,31 +389,32 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
     return () => clearInterval(interval);
   }, [isPlaying, speed]);
 
-  // Auto-close on TP/SL
+  // Auto-close on TP/SL (only trigger on price changes, not on TP/SL input changes)
   useEffect(() => {
-    if (!position || entryPrice == null) return;
+    if (!position || entryPrice == null || !tp || !sl) return;
     
-    if (tp != null) {
-      if (position === 'long' && currentPrice >= tp) {
+    if (position === 'long') {
+      if (currentPrice >= tp && tp > entryPrice) {
         closePosition(tp);
         return;
       }
-      if (position === 'short' && currentPrice <= tp) {
-        closePosition(tp);
-        return;
-      }
-    }
-    if (sl != null) {
-      if (position === 'long' && currentPrice <= sl) {
-        closePosition(sl);
-        return;
-      }
-      if (position === 'short' && currentPrice >= sl) {
+      if (currentPrice <= sl && sl < entryPrice) {
         closePosition(sl);
         return;
       }
     }
-  }, [currentPrice, position, tp, sl]);
+    
+    if (position === 'short') {
+      if (currentPrice <= tp && tp < entryPrice) {
+        closePosition(tp);
+        return;
+      }
+      if (currentPrice >= sl && sl > entryPrice) {
+        closePosition(sl);
+        return;
+      }
+    }
+  }, [currentPrice]);
 
   // Publish state to parent
   useEffect(() => {
@@ -579,12 +580,34 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
 
   const updateTp = (value: string) => {
     const num = parseFloat(value);
-    if (!isNaN(num) && num > 0) setTp(num);
+    if (!isNaN(num) && num > 0) {
+      // Validate TP makes sense for position direction
+      if (position === 'long' && entryPrice && num <= entryPrice) {
+        toast({ title: 'Invalid TP', description: 'Take profit must be above entry for long positions', variant: 'destructive' });
+        return;
+      }
+      if (position === 'short' && entryPrice && num >= entryPrice) {
+        toast({ title: 'Invalid TP', description: 'Take profit must be below entry for short positions', variant: 'destructive' });
+        return;
+      }
+      setTp(num);
+    }
   };
 
   const updateSl = (value: string) => {
     const num = parseFloat(value);
-    if (!isNaN(num) && num > 0) setSl(num);
+    if (!isNaN(num) && num > 0) {
+      // Validate SL makes sense for position direction
+      if (position === 'long' && entryPrice && num >= entryPrice) {
+        toast({ title: 'Invalid SL', description: 'Stop loss must be below entry for long positions', variant: 'destructive' });
+        return;
+      }
+      if (position === 'short' && entryPrice && num <= entryPrice) {
+        toast({ title: 'Invalid SL', description: 'Stop loss must be above entry for short positions', variant: 'destructive' });
+        return;
+      }
+      setSl(num);
+    }
   };
 
   return (
