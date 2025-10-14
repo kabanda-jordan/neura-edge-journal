@@ -1,18 +1,26 @@
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import alexRivera from "@/assets/testimonials/alex-rivera.jpg";
+import sarahChen from "@/assets/testimonials/sarah-chen.jpg";
+import marcusThompson from "@/assets/testimonials/marcus-thompson.jpg";
+
 const testimonials = [
   {
     name: "Alex Rivera",
     role: "Day Trader",
     content: "This AI changed my trading game. I finally understand my patterns and weaknesses. My win rate improved by 30% in just 2 months.",
+    image: alexRivera,
   },
   {
     name: "Sarah Chen",
     role: "Swing Trader",
     content: "The discipline tracker is a game-changer. It keeps me accountable and helps me avoid emotional trading. Best tool I've ever used.",
+    image: sarahChen,
   },
   {
     name: "Marcus Thompson",
     role: "Options Trader",
     content: "The AI insights are incredibly accurate. It's like having a trading coach available 24/7. Absolutely worth it.",
+    image: marcusThompson,
   },
 ];
 
@@ -53,9 +61,15 @@ export const Testimonials = () => {
                   "{testimonial.content}"
                 </p>
               </div>
-              <div className="border-t border-border pt-4">
-                <p className="font-semibold">{testimonial.name}</p>
-                <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+              <div className="border-t border-border pt-4 flex items-center gap-3">
+                <Avatar className="w-12 h-12 border-2 border-primary/20">
+                  <AvatarImage src={testimonial.image} alt={testimonial.name} />
+                  <AvatarFallback>{testimonial.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{testimonial.name}</p>
+                  <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                </div>
               </div>
             </div>
           ))}
