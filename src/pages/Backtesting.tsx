@@ -63,6 +63,9 @@ const Backtesting = () => {
     script.onload = () => {
       if (window.TradingView) {
         try {
+          // Convert start date to timestamp
+          const startTimestamp = Math.floor(new Date(settings.startDate).getTime() / 1000);
+          
           widgetRef.current = new window.TradingView.widget({
             container_id: "tradingview_chart",
             width: "100%",
@@ -76,23 +79,27 @@ const Backtesting = () => {
             toolbar_bg: "#1a1a1a",
             enable_publishing: false,
             hide_side_toolbar: false,
-            allow_symbol_change: true,
+            allow_symbol_change: false,
             details: true,
-            hotlist: true,
-            calendar: true,
             studies: [
               "MASimple@tv-basicstudies",
               "RSI@tv-basicstudies",
               "MACD@tv-basicstudies"
             ],
-            show_popup_button: true,
-            popup_width: "1000",
-            popup_height: "650"
+            // Set initial timestamp to start date
+            time_frames: [
+              { text: "1d", resolution: "1", description: "1 Day" },
+              { text: "5d", resolution: "5", description: "5 Days" },
+              { text: "1m", resolution: "30", description: "1 Month" },
+              { text: "3m", resolution: "60", description: "3 Months" },
+              { text: "6m", resolution: "120", description: "6 Months" },
+              { text: "1y", resolution: "D", description: "1 Year" },
+            ]
           });
 
           toast({
             title: "Chart Loaded",
-            description: "TradingView chart initialized successfully"
+            description: `Historical data from ${settings.startDate}`
           });
         } catch (error) {
           console.error('TradingView widget error:', error);
@@ -120,7 +127,7 @@ const Backtesting = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [settings.symbol, settings.timeframe]);
+  }, [settings.symbol, settings.timeframe, settings.startDate]);
 
   // Chart replay simulation
   useEffect(() => {
