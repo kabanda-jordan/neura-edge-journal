@@ -8,7 +8,54 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Futuristic Trading Platform - Dark Theme */
+    /* Light Mode - Clean Professional Theme */
+    --background: 0 0% 100%;
+    --foreground: 220 20% 10%;
+
+    --card: 0 0% 98%;
+    --card-foreground: 220 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    --primary: 193 100% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 165 100% 44%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 15% 96%;
+    --muted-foreground: 220 10% 40%;
+
+    --accent: 165 100% 44%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 193 100% 56%;
+
+    --radius: 0.75rem;
+
+    /* Custom tokens for trading platform */
+    --neon-blue: 193 100% 56%;
+    --neon-green: 165 100% 44%;
+    --glass-bg: 0 0% 98%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(193 100% 56% / 0.15), hsl(165 100% 44% / 0.15));
+    --gradient-glow: radial-gradient(ellipse at center, hsl(193 100% 56% / 0.1), transparent);
+    
+    /* Shadows */
+    --glow-blue: 0 0 40px hsl(193 100% 56% / 0.2);
+    --glow-green: 0 0 40px hsl(165 100% 44% / 0.2);
+    --shadow-elevated: 0 10px 30px hsl(220 20% 10% / 0.1);
+  }
+
+  .dark {
+    /* Dark Mode - Futuristic Trading Platform */
     --background: 220 20% 6%;
     --foreground: 0 0% 100%;
 
@@ -37,13 +84,7 @@ All colors MUST be HSL.
     --input: 220 15% 18%;
     --ring: 193 100% 56%;
 
-    --radius: 0.75rem;
-
     /* Custom tokens for trading platform */
-    --neon-blue: 193 100% 56%;
-    --neon-green: 165 100% 44%;
-    --dark-bg: 220 20% 6%;
-    --card-bg: 220 18% 10%;
     --glass-bg: 220 18% 10%;
     
     /* Gradients */
