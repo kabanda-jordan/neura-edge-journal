@@ -137,7 +137,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         <CardTitle>Add New Trade</CardTitle>
         <CardDescription>Record your trade details</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-[600px] overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
