@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack } from "lucide-react";
+import { createChart, IChartApi, ISeriesApi, CandlestickData, ColorType, CandlestickSeries } from 'lightweight-charts';
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -81,8 +82,8 @@ const fetchKlines = async (symbol: string, interval: string, startTimeMs: number
 
 const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startDate, initialBalance, onStateChange }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const widgetRef = useRef<any>(null);
-  const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const { toast } = useToast();
 
   // Replay and trading state
@@ -113,114 +114,170 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const currentPrice = currentCandle?.close ?? 0;
   const currentTime = currentCandle?.time ?? Math.floor(new Date(startDate).getTime() / 1000);
 
-  // Init TradingView chart
+  // Load historical data
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/tv.js';
-    script.async = true;
-    script.onload = () => {
-      if (typeof (window as any).TradingView !== 'undefined' && containerRef.current) {
-        try {
-          widgetRef.current = new (window as any).TradingView.widget({
-            container_id: 'tv_chart_container',
-            autosize: true,
-            symbol: `BINANCE:${mappedSymbol}`,
-            interval: mappedTf,
-            timezone: 'Etc/UTC',
-            theme: 'dark',
-            style: '1',
-            locale: 'en',
-            toolbar_bg: '#0a0a0a',
-            enable_publishing: false,
-            hide_side_toolbar: false,
-            allow_symbol_change: true,
-            studies: []
-          });
-        } catch (e) {
-          console.error('TradingView widget initialization error:', e);
+    const loadData = async () => {
+      try {
+        const binanceSymbol = mapSymbolToBinance(symbol);
+        const binanceInterval = mapTimeframe(timeframe);
+        const startMs = new Date(startDate).getTime();
+        
+        toast({ title: 'Loading Data...', description: `Fetching ${binanceSymbol} ${binanceInterval} candles` });
+        
+        const candles = await fetchKlines(binanceSymbol, binanceInterval, startMs, 1500);
+        
+        if (candles.length === 0) {
+          toast({ title: 'No Data', description: 'No historical data found for this period', variant: 'destructive' });
+          return;
         }
+        
+        setData(candles);
+        setIdx(50); // Start from candle 50 to show some history
+        toast({ title: 'Data Loaded', description: `${candles.length} candles ready to replay` });
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast({ title: 'Error', description: 'Failed to load historical data', variant: 'destructive' });
       }
     };
     
-    scriptRef.current = script;
-    document.head.appendChild(script);
+    loadData();
+  }, [symbol, timeframe, startDate]);
 
-    return () => {
-      // Cleanup widget
-      if (widgetRef.current) {
-        try {
-          if (typeof widgetRef.current.remove === 'function') {
-            widgetRef.current.remove();
-          }
-        } catch (e) {
-          console.error('Widget cleanup error:', e);
-        }
-        widgetRef.current = null;
-      }
-      
-      // Cleanup script
-      if (scriptRef.current && scriptRef.current.parentNode) {
-        try {
-          scriptRef.current.parentNode.removeChild(scriptRef.current);
-        } catch (e) {
-          console.error('Script cleanup error:', e);
-        }
-        scriptRef.current = null;
+  // Initialize chart
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const chart = createChart(containerRef.current, {
+      width: containerRef.current.clientWidth,
+      height: 600,
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: '#9ca3af',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+      },
+      timeScale: {
+        borderColor: '#374151',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      rightPriceScale: {
+        borderColor: '#374151',
+      },
+    });
+
+    const candleSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderVisible: false,
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    });
+
+    chartRef.current = chart;
+    candleSeriesRef.current = candleSeries;
+
+    // Handle resize
+    const handleResize = () => {
+      if (containerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
       }
     };
-  }, [mappedSymbol, mappedTf]);
+    window.addEventListener('resize', handleResize);
 
-  // Initialize replay state
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+    };
+  }, []);
+
+  // Update chart with visible data based on idx
+  useEffect(() => {
+    if (!candleSeriesRef.current || data.length === 0) return;
+    
+    // Show data from beginning up to current idx
+    const visibleData = data.slice(0, idx).map(c => ({
+      time: c.time as any,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+    
+    candleSeriesRef.current.setData(visibleData);
+    
+    // Auto-scroll to latest candle
+    if (chartRef.current && visibleData.length > 0) {
+      chartRef.current.timeScale().scrollToPosition(3, false);
+    }
+  }, [idx, data]);
+
+  // Reset state on symbol/timeframe change
   useEffect(() => {
     setIsPlaying(false);
-    setIdx(1);
     setTrades([]);
     setPosition(null);
     setEntryPrice(null);
     setTp(null);
     setSl(null);
     setBalance(initialBalance);
-    setData([]);
-    
-    toast({ title: 'Chart Ready', description: `${mappedSymbol} • Interval: ${mappedTf}` });
   }, [mappedSymbol, mappedTf, initialBalance]);
 
-  // Replay timer (simplified for TradingView)
+  // Replay timer - advance candles
   useEffect(() => {
-    if (!isPlaying) return;
-    const stepMs = Math.max(100, 800 / speed);
+    if (!isPlaying || data.length === 0) return;
+    
+    if (idx >= data.length) {
+      setIsPlaying(false);
+      toast({ title: 'Replay Complete', description: 'Reached end of historical data' });
+      return;
+    }
+    
+    const stepMs = Math.max(50, 500 / speed);
     timerRef.current = window.setInterval(() => {
-      setIdx(prev => prev + 1);
+      setIdx(prev => {
+        if (prev >= data.length - 1) {
+          setIsPlaying(false);
+          return prev;
+        }
+        return prev + 1;
+      });
     }, stepMs);
 
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, [isPlaying, speed]);
+  }, [isPlaying, speed, data.length, idx]);
 
-  // Auto-close on TP/SL (simplified simulation)
+  // Auto-close on TP/SL using actual candle data
   useEffect(() => {
-    if (!position || entryPrice == null) return;
+    if (!position || entryPrice == null || !currentCandle) return;
     
-    // Simulate price movement
-    const simulatedPrice = currentPrice + (Math.random() - 0.5) * currentPrice * 0.001;
-    
+    // Check if TP/SL hit based on candle high/low
     if (tp != null) {
-      if ((position === 'long' && simulatedPrice >= tp) || (position === 'short' && simulatedPrice <= tp)) {
+      if (position === 'long' && currentCandle.high >= tp) {
+        closePosition(tp);
+        return;
+      }
+      if (position === 'short' && currentCandle.low <= tp) {
         closePosition(tp);
         return;
       }
     }
     if (sl != null) {
-      if ((position === 'long' && simulatedPrice <= sl) || (position === 'short' && simulatedPrice >= sl)) {
+      if (position === 'long' && currentCandle.low <= sl) {
+        closePosition(sl);
+        return;
+      }
+      if (position === 'short' && currentCandle.high >= sl) {
         closePosition(sl);
         return;
       }
     }
     publishState();
-  }, [idx]);
+  }, [idx, position, entryPrice, tp, sl]);
 
 
   // Publish state up
@@ -279,16 +336,34 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   };
 
   // Replay controls
-  const togglePlay = () => setIsPlaying(p => !p);
-  const reset = () => { setIsPlaying(false); setIdx(1); };
-  const skipForward = () => setIdx(v => v + 30);
-  const skipBack = () => setIdx(v => Math.max(v - 30, 1));
+  const togglePlay = () => {
+    if (data.length === 0) {
+      toast({ title: 'No Data', description: 'Wait for data to load first', variant: 'destructive' });
+      return;
+    }
+    setIsPlaying(p => !p);
+  };
+  
+  const reset = () => { 
+    setIsPlaying(false); 
+    setIdx(50); 
+    setPosition(null);
+    setEntryPrice(null);
+    setTp(null);
+    setSl(null);
+    setBalance(initialBalance);
+    setTrades([]);
+    toast({ title: 'Reset', description: 'Replay restarted' });
+  };
+  
+  const skipForward = () => setIdx(v => Math.min(v + 50, data.length - 1));
+  const skipBack = () => setIdx(v => Math.max(v - 50, 50));
   const incSpeed = () => setSpeed(s => Math.min(s * 2, 16));
-  const decSpeed = () => setSpeed(s => Math.max(s / 2, 0.5));
+  const decSpeed = () => setSpeed(s => Math.max(s / 2, 0.25));
 
   return (
-    <div className="relative w-full rounded-lg bg-card">
-      <div id="tv_chart_container" ref={containerRef} className="w-full h-[600px] rounded-lg" />
+    <div className="relative w-full rounded-lg bg-card overflow-hidden">
+      <div ref={containerRef} className="w-full h-[600px]" />
 
       {/* Overlay controls inside chart area */}
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3">
@@ -326,9 +401,10 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
         </div>
 
         {/* Top-right info */}
-        <div className="pointer-events-none self-end text-right text-xs bg-background/60 backdrop-blur rounded px-2 py-1">
-          <div>{new Date(currentTime * 1000).toLocaleString()}</div>
-          <div className="font-mono font-bold text-primary">${currentPrice.toFixed(2)}</div>
+        <div className="pointer-events-none self-end text-right text-xs bg-background/80 backdrop-blur rounded px-3 py-2 border border-border">
+          <div className="text-muted-foreground">{new Date(currentTime * 1000).toLocaleString()}</div>
+          <div className="font-mono font-bold text-primary text-lg">${currentPrice.toFixed(2)}</div>
+          <div className="text-muted-foreground mt-1">Candle {idx} / {data.length}</div>
         </div>
       </div>
     </div>
