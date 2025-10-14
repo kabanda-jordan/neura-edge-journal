@@ -95,6 +95,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
   const slLineRef = useRef<IPriceLine | null>(null);
   const allCandlesRef = useRef<CandlestickData[]>([]);
   const currentIndexRef = useRef(0);
+  const isDraggingRef = useRef<'tp' | 'sl' | null>(null);
   const { toast } = useToast();
 
   // Backtesting state
@@ -175,13 +176,55 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       }
     };
 
+    // Mouse event handlers for dragging TP/SL lines
+    const handleMouseDown = (param: any) => {
+      if (!position || !param.point) return;
+      
+      const price = candlestickSeriesRef.current?.coordinateToPrice(param.point.y);
+      if (!price) return;
+      
+      const threshold = Math.abs(currentPrice * 0.005); // 0.5% threshold
+      
+      if (tp != null && Math.abs(price - tp) < threshold) {
+        isDraggingRef.current = 'tp';
+      } else if (sl != null && Math.abs(price - sl) < threshold) {
+        isDraggingRef.current = 'sl';
+      }
+    };
+
+    const handleMouseMove = (param: any) => {
+      if (!isDraggingRef.current || !param.point) return;
+      
+      const price = candlestickSeriesRef.current?.coordinateToPrice(param.point.y);
+      if (!price) return;
+      
+      if (isDraggingRef.current === 'tp') {
+        setTp(price);
+      } else if (isDraggingRef.current === 'sl') {
+        setSl(price);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = null;
+    };
+
+    chart.subscribeClick(handleMouseDown);
+    chart.subscribeCrosshairMove(handleMouseMove);
+    
+    const chartElement = chartContainerRef.current;
+    chartElement?.addEventListener('mouseup', handleMouseUp);
+    chartElement?.addEventListener('mouseleave', handleMouseUp);
+
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      chartElement?.removeEventListener('mouseup', handleMouseUp);
+      chartElement?.removeEventListener('mouseleave', handleMouseUp);
       chart.remove();
     };
-  }, [symbol, timeframe, startDate]);
+  }, [symbol, timeframe, startDate, position, currentPrice, tp, sl]);
 
   // Calculate SMA
   const calculateSMA = (data: CandlestickData[], period: number) => {
