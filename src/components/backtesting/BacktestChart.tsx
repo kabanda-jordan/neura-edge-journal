@@ -186,30 +186,39 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
 
   // Handle dragging TP/SL lines
   useEffect(() => {
-    if (!chartRef.current || !candlestickSeriesRef.current) return;
+    if (!chartRef.current || !candlestickSeriesRef.current || !chartContainerRef.current) return;
 
     const chart = chartRef.current;
     const candlestickSeries = candlestickSeriesRef.current;
+    const chartElement = chartContainerRef.current;
 
-    const handleMouseDown = (param: any) => {
-      if (!position || !param.point) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!position) return;
       
-      const price = candlestickSeries.coordinateToPrice(param.point.y);
+      const rect = chartElement.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      
+      const price = candlestickSeries.coordinateToPrice(y);
       if (!price) return;
       
-      const threshold = Math.abs(currentPrice * 0.005); // 0.5% threshold
+      const threshold = Math.abs(currentPrice * 0.01); // 1% threshold for easier grabbing
       
       if (tp != null && Math.abs(price - tp) < threshold) {
         isDraggingRef.current = 'tp';
+        e.preventDefault();
       } else if (sl != null && Math.abs(price - sl) < threshold) {
         isDraggingRef.current = 'sl';
+        e.preventDefault();
       }
     };
 
-    const handleMouseMove = (param: any) => {
-      if (!isDraggingRef.current || !param.point) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
       
-      const price = candlestickSeries.coordinateToPrice(param.point.y);
+      const rect = chartElement.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      
+      const price = candlestickSeries.coordinateToPrice(y);
       if (!price) return;
       
       if (isDraggingRef.current === 'tp') {
@@ -217,22 +226,55 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       } else if (isDraggingRef.current === 'sl') {
         setSl(price);
       }
+      
+      e.preventDefault();
     };
 
     const handleMouseUp = () => {
-      isDraggingRef.current = null;
+      if (isDraggingRef.current) {
+        isDraggingRef.current = null;
+      }
     };
 
-    chart.subscribeClick(handleMouseDown);
-    chart.subscribeCrosshairMove(handleMouseMove);
+    chartElement.addEventListener('mousedown', handleMouseDown);
+    chartElement.addEventListener('mousemove', handleMouseMove);
+    chartElement.addEventListener('mouseup', handleMouseUp);
+    chartElement.addEventListener('mouseleave', handleMouseUp);
     
-    const chartElement = chartContainerRef.current;
-    chartElement?.addEventListener('mouseup', handleMouseUp);
-    chartElement?.addEventListener('mouseleave', handleMouseUp);
+    // Change cursor when hovering near lines
+    const handleCursorChange = (e: MouseEvent) => {
+      if (!position) {
+        chartElement.style.cursor = 'default';
+        return;
+      }
+      
+      const rect = chartElement.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const price = candlestickSeries.coordinateToPrice(y);
+      
+      if (!price) {
+        chartElement.style.cursor = 'default';
+        return;
+      }
+      
+      const threshold = Math.abs(currentPrice * 0.01);
+      
+      if ((tp != null && Math.abs(price - tp) < threshold) || 
+          (sl != null && Math.abs(price - sl) < threshold)) {
+        chartElement.style.cursor = 'ns-resize';
+      } else {
+        chartElement.style.cursor = 'default';
+      }
+    };
+    
+    chartElement.addEventListener('mousemove', handleCursorChange);
 
     return () => {
-      chartElement?.removeEventListener('mouseup', handleMouseUp);
-      chartElement?.removeEventListener('mouseleave', handleMouseUp);
+      chartElement.removeEventListener('mousedown', handleMouseDown);
+      chartElement.removeEventListener('mousemove', handleMouseMove);
+      chartElement.removeEventListener('mouseup', handleMouseUp);
+      chartElement.removeEventListener('mouseleave', handleMouseUp);
+      chartElement.removeEventListener('mousemove', handleCursorChange);
     };
   }, [position, currentPrice, tp, sl]);
 
