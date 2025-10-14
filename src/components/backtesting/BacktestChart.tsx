@@ -402,10 +402,10 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       tpLineRef.current = candlestickSeriesRef.current.createPriceLine({
         price: tp,
         color: '#10b981',
-        lineWidth: 2,
+        lineWidth: 3,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: 'TP',
+        title: `TP: $${tp.toFixed(2)}`,
       });
     }
 
@@ -413,10 +413,10 @@ const BacktestChart: React.FC<BacktestChartProps> = ({
       slLineRef.current = candlestickSeriesRef.current.createPriceLine({
         price: sl,
         color: '#ef4444',
-        lineWidth: 2,
+        lineWidth: 3,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: 'SL',
+        title: `SL: $${sl.toFixed(2)}`,
       });
     }
   }, [position, tp, sl]);
