@@ -90,7 +90,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const [data, setData] = useState<Candle[]>([]);
   const [idx, setIdx] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1); // multiplier
+  const [speed, setSpeed] = useState(2); // multiplier
   const timerRef = useRef<number | null>(null);
 
   const [position, setPosition] = useState<PositionType>(null);
@@ -366,7 +366,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       <div ref={containerRef} className="w-full h-[600px]" />
 
       {/* Overlay controls inside chart area */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3">
+      <div className="absolute inset-0 z-10 flex flex-col justify-between p-3">
         {/* Top-left replay controls */}
         <div className="pointer-events-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={decSpeed}><Rewind className="w-4 h-4" /></Button>
