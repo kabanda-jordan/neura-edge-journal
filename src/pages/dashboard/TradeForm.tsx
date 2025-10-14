@@ -18,6 +18,11 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     entry_price: "",
     quantity: "",
     notes: "",
+    strategy_type: "",
+    timeframe: "5m",
+    confidence: "5",
+    risk_percentage: "",
+    limit_order: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,6 +43,11 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         entry_price: parseFloat(formData.entry_price),
         quantity: parseFloat(formData.quantity),
         notes: formData.notes,
+        strategy_type: formData.strategy_type,
+        timeframe: formData.timeframe,
+        confidence: parseInt(formData.confidence),
+        risk_percentage: formData.risk_percentage ? parseFloat(formData.risk_percentage) : null,
+        limit_order: formData.limit_order,
         status: 'open',
         entry_date: new Date().toISOString(),
       });
@@ -55,6 +65,11 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         entry_price: "",
         quantity: "",
         notes: "",
+        strategy_type: "",
+        timeframe: "5m",
+        confidence: "5",
+        risk_percentage: "",
+        limit_order: "",
       });
 
       onSuccess?.();
@@ -129,6 +144,73 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                 required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="strategy">Strategy Type</Label>
+              <Input
+                id="strategy"
+                placeholder="Trend break, Break & retest, etc."
+                value={formData.strategy_type}
+                onChange={(e) => setFormData({ ...formData, strategy_type: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="timeframe">Timeframe</Label>
+              <Select
+                value={formData.timeframe}
+                onValueChange={(value) => setFormData({ ...formData, timeframe: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1m">1m</SelectItem>
+                  <SelectItem value="5m">5m</SelectItem>
+                  <SelectItem value="15m">15m</SelectItem>
+                  <SelectItem value="30m">30m</SelectItem>
+                  <SelectItem value="1h">1h</SelectItem>
+                  <SelectItem value="4h">4h</SelectItem>
+                  <SelectItem value="1d">1d</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="confidence">Confidence (1-10)</Label>
+              <Input
+                id="confidence"
+                type="number"
+                min="1"
+                max="10"
+                placeholder="5"
+                value={formData.confidence}
+                onChange={(e) => setFormData({ ...formData, confidence: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="risk">Risk %</Label>
+              <Input
+                id="risk"
+                type="number"
+                step="0.01"
+                placeholder="2.5"
+                value={formData.risk_percentage}
+                onChange={(e) => setFormData({ ...formData, risk_percentage: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="limit">Limit Order</Label>
+              <Input
+                id="limit"
+                placeholder="L0"
+                value={formData.limit_order}
+                onChange={(e) => setFormData({ ...formData, limit_order: e.target.value })}
               />
             </div>
           </div>

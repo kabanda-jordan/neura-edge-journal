@@ -121,52 +121,70 @@ export type Database = {
       }
       trades: {
         Row: {
+          confidence: number | null
           created_at: string
           entry_date: string
           entry_price: number
           exit_date: string | null
           exit_price: number | null
           id: string
+          limit_order: string | null
           notes: string | null
           profit_loss: number | null
           quantity: number
+          r_factor: number | null
+          risk_percentage: number | null
           status: string
+          strategy_type: string | null
           symbol: string
           tags: string[] | null
+          timeframe: string | null
           trade_type: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          confidence?: number | null
           created_at?: string
           entry_date: string
           entry_price: number
           exit_date?: string | null
           exit_price?: number | null
           id?: string
+          limit_order?: string | null
           notes?: string | null
           profit_loss?: number | null
           quantity: number
+          r_factor?: number | null
+          risk_percentage?: number | null
           status?: string
+          strategy_type?: string | null
           symbol: string
           tags?: string[] | null
+          timeframe?: string | null
           trade_type: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          confidence?: number | null
           created_at?: string
           entry_date?: string
           entry_price?: number
           exit_date?: string | null
           exit_price?: number | null
           id?: string
+          limit_order?: string | null
           notes?: string | null
           profit_loss?: number | null
           quantity?: number
+          r_factor?: number | null
+          risk_percentage?: number | null
           status?: string
+          strategy_type?: string | null
           symbol?: string
           tags?: string[] | null
+          timeframe?: string | null
           trade_type?: string
           updated_at?: string
           user_id?: string

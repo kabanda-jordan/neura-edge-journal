@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TrendingUp, TrendingDown, Plus } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 
 export const TradesList = () => {
   const [trades, setTrades] = useState<any[]>([]);
@@ -76,11 +78,23 @@ export const TradesList = () => {
     }
   };
 
+  const getWinLossStatus = (profitLoss: number | null) => {
+    if (profitLoss === null) return "OPEN";
+    if (profitLoss > 0) return "Win";
+    if (profitLoss < 0) return "LOSS";
+    return "BREAKEVEN";
+  };
+
+  const getDayName = (date: string) => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[new Date(date).getDay()];
+  };
+
   if (trades.length === 0) {
     return (
       <Card className="glass-card">
         <CardHeader>
-          <CardTitle>Your Trading History</CardTitle>
+          <CardTitle>Master Trade Log</CardTitle>
           <CardDescription>All trades will appear here once you start journaling</CardDescription>
         </CardHeader>
         <CardContent className="min-h-[400px] flex items-center justify-center">
@@ -97,80 +111,141 @@ export const TradesList = () => {
   }
 
   return (
-    <div className="grid gap-4">
-      {trades.map((trade) => (
-        <Card key={trade.id} className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-2xl font-bold">{trade.symbol}</h3>
-                  <Badge variant={trade.trade_type === 'long' ? 'default' : 'secondary'}>
-                    {trade.trade_type}
-                  </Badge>
-                  <Badge variant={trade.status === 'closed' ? 'outline' : 'default'}>
-                    {trade.status}
-                  </Badge>
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Entry</p>
-                    <p className="font-semibold">${trade.entry_price}</p>
-                  </div>
-                  {trade.exit_price && (
-                    <div>
-                      <p className="text-muted-foreground">Exit</p>
-                      <p className="font-semibold">${trade.exit_price}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-muted-foreground">Quantity</p>
-                    <p className="font-semibold">{trade.quantity}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Date</p>
-                    <p className="font-semibold">
-                      {new Date(trade.entry_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-
-                {trade.notes && (
-                  <p className="text-sm text-muted-foreground">{trade.notes}</p>
-                )}
-              </div>
-
-              <div className="text-right space-y-2">
-                {trade.profit_loss !== null ? (
-                  <div className={`flex items-center gap-2 ${
-                    trade.profit_loss > 0 ? 'text-accent' : 'text-destructive'
-                  }`}>
-                    {trade.profit_loss > 0 ? (
-                      <TrendingUp className="w-5 h-5" />
-                    ) : (
-                      <TrendingDown className="w-5 h-5" />
-                    )}
-                    <span className="text-2xl font-bold">
-                      {trade.profit_loss > 0 ? '+' : ''}${trade.profit_loss.toFixed(2)}
-                    </span>
-                  </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      const exitPrice = prompt('Enter exit price:');
-                      if (exitPrice) closeTrade(trade.id, parseFloat(exitPrice));
-                    }}
-                  >
-                    Close Trade
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <Card className="glass-card">
+      <CardHeader>
+        <CardTitle>Master Trade Log</CardTitle>
+        <CardDescription>Complete trading history with detailed analytics</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-lg border border-border/50 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead>Day</TableHead>
+                <TableHead>Coin</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>TF</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead>Confidence</TableHead>
+                <TableHead>Risk %</TableHead>
+                <TableHead>Limit</TableHead>
+                <TableHead>PnL $</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {trades.map((trade) => {
+                const status = getWinLossStatus(trade.profit_loss);
+                return (
+                  <TableRow key={trade.id} className="hover:bg-muted/30">
+                    <TableCell>
+                      <Badge variant="outline" className="font-normal">
+                        {getDayName(trade.entry_date)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono">
+                        {trade.symbol}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {trade.strategy_type ? (
+                        <Badge variant="outline">{trade.strategy_type}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {trade.timeframe ? (
+                        <Badge className="bg-accent/20 text-accent border-accent/50">
+                          {trade.timeframe}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={trade.trade_type === 'long' ? 'default' : 'destructive'}
+                        className={trade.trade_type === 'long' ? 'bg-accent text-accent-foreground' : ''}
+                      >
+                        {trade.trade_type === 'long' ? 'Long' : 'Short'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {trade.confidence ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{trade.confidence}</span>
+                          <Progress 
+                            value={trade.confidence * 10} 
+                            className="w-16 h-2"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {trade.risk_percentage ? (
+                        <span className="font-medium">{trade.risk_percentage}%</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {trade.limit_order || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell>
+                      {trade.profit_loss !== null ? (
+                        <span className={`font-bold ${
+                          trade.profit_loss > 0 ? 'text-accent' : 
+                          trade.profit_loss < 0 ? 'text-destructive' : 
+                          'text-muted-foreground'
+                        }`}>
+                          {trade.profit_loss > 0 ? '+' : ''}${trade.profit_loss.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={
+                          status === 'Win' ? 'default' : 
+                          status === 'LOSS' ? 'destructive' : 
+                          'outline'
+                        }
+                        className={
+                          status === 'Win' ? 'bg-accent text-accent-foreground' : 
+                          status === 'BREAKEVEN' ? 'bg-muted' : 
+                          ''
+                        }
+                      >
+                        {status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {trade.profit_loss === null && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const exitPrice = prompt('Enter exit price:');
+                            if (exitPrice) closeTrade(trade.id, parseFloat(exitPrice));
+                          }}
+                        >
+                          Close
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
