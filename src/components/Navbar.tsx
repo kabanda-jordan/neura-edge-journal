@@ -103,9 +103,17 @@ export const Navbar = () => {
               Supported Brokers
             </Link>
 
+            {/* Backtesting */}
+            <Link
+              to="/backtesting"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-primary/5"
+            >
+              Backtesting
+            </Link>
+
             {/* Discord */}
             <a
-              href="https://discord.gg/R76uPD2n"
+              href="https://discord.com/channels/1427653022196043787/1427653022711812191"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-primary/5"
@@ -223,8 +231,15 @@ export const Navbar = () => {
               >
                 Supported Brokers
               </Link>
+              <Link
+                to="/backtesting"
+                onClick={() => setIsOpen(false)}
+                className="block px-4 py-3 text-sm hover:bg-primary/5 transition-colors rounded-lg"
+              >
+                Backtesting
+              </Link>
               <a
-                href="https://discord.gg/R76uPD2n"
+                href="https://discord.com/channels/1427653022196043787/1427653022711812191"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-primary/5 transition-colors rounded-lg"

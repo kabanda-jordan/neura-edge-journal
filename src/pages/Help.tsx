@@ -96,8 +96,14 @@ const Help = () => {
               <Button className="bg-gradient-to-r from-primary to-accent">
                 Contact Support
               </Button>
-              <Button variant="outline" className="border-primary/30">
-                Join Discord Community
+              <Button asChild variant="outline" className="border-primary/30">
+                <a 
+                  href="https://discord.com/channels/1427653022196043787/1427653022711812191"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Join Discord Community
+                </a>
               </Button>
             </CardContent>
           </Card>

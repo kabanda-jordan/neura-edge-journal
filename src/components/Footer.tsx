@@ -75,7 +75,7 @@ export const Footer = () => {
             <p className="text-sm text-muted-foreground">© 2025 TradeMind. All rights reserved.</p>
             <div className="flex gap-4">
               <a 
-                href="https://discord.gg/R76uPD2n" 
+                href="https://discord.com/channels/1427653022196043787/1427653022711812191"
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"

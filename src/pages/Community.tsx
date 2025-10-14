@@ -26,8 +26,14 @@ const Community = () => {
               Connect with thousands of traders, share strategies, and grow together
             </p>
             <div className="flex justify-center gap-4">
-              <Button className="bg-gradient-to-r from-primary to-accent" size="lg">
-                Join Discord Server
+              <Button asChild className="bg-gradient-to-r from-primary to-accent" size="lg">
+                <a 
+                  href="https://discord.com/channels/1427653022196043787/1427653022711812191"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Join Discord Server
+                </a>
               </Button>
               <Button variant="outline" className="border-primary/30" size="lg">
                 Browse Forums
