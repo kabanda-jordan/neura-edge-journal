@@ -117,21 +117,21 @@ export const TradesList = () => {
         <CardDescription>Complete trading history with detailed analytics</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="rounded-lg border border-border/50 overflow-hidden">
+        <div className="rounded-lg border border-border/50 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead>Day</TableHead>
-                <TableHead>Coin</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>TF</TableHead>
-                <TableHead>Position</TableHead>
-                <TableHead>Confidence</TableHead>
-                <TableHead>Risk %</TableHead>
-                <TableHead>Limit</TableHead>
-                <TableHead>PnL $</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Action</TableHead>
+                <TableHead className="whitespace-nowrap">Day</TableHead>
+                <TableHead className="whitespace-nowrap">Coin</TableHead>
+                <TableHead className="whitespace-nowrap">Type</TableHead>
+                <TableHead className="whitespace-nowrap">TF</TableHead>
+                <TableHead className="whitespace-nowrap">Position</TableHead>
+                <TableHead className="whitespace-nowrap">Confidence</TableHead>
+                <TableHead className="whitespace-nowrap">Risk %</TableHead>
+                <TableHead className="whitespace-nowrap">Limit</TableHead>
+                <TableHead className="whitespace-nowrap">PnL $</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="whitespace-nowrap">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

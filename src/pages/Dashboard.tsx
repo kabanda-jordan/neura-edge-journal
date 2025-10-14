@@ -18,7 +18,7 @@ const Dashboard = () => {
       <Navbar />
       <DashboardSidebar />
       
-      <main className="ml-64 pt-24 pb-12 px-8">
+      <main className="lg:ml-64 pt-24 pb-12 px-4 sm:px-6 md:px-8">
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/journal" element={<Journal />} />

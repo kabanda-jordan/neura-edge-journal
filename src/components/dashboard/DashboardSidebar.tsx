@@ -28,7 +28,7 @@ const sidebarLinks = [
 
 export const DashboardSidebar = () => {
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 glass-card border-r border-border/50 pt-20 overflow-y-auto z-10">
+    <aside className="hidden lg:block fixed left-0 top-0 h-screen w-64 glass-card border-r border-border/50 pt-20 overflow-y-auto z-10">
       <div className="px-4 py-6">
         <nav className="space-y-1">
           {sidebarLinks.map((link) => {

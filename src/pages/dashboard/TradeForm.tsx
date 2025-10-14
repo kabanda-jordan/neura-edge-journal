@@ -93,7 +93,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="symbol">Symbol</Label>
               <Input
@@ -121,7 +121,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="entry">Entry Price</Label>
               <Input
@@ -148,7 +148,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="strategy">Strategy Type</Label>
               <Input
@@ -180,7 +180,7 @@ export const TradeForm = ({ onSuccess }: { onSuccess?: () => void }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="confidence">Confidence (1-10)</Label>
               <Input

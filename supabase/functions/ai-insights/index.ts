@@ -12,7 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { trades, type = 'insights' } = await req.json();
+    const body = await req.json();
+    const { trades, type = 'insights', question } = body;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -32,11 +33,14 @@ serve(async (req) => {
       - Specific metrics or examples
       - An actionable recommendation
       
-      Format each insight as JSON with: type (warning/success/tip), title, message, color.`;
+      Format your response as a JSON array with this structure:
+      [{"type": "warning", "title": "...", "message": "...", "color": "text-orange-500"}]
+      
+      Type can be: warning, success, or tip
+      Color should be: text-orange-500 for warning, text-green-500 for success, text-blue-500 for tip`;
       
       userPrompt = `Analyze this trading data and provide 3 insights:\n${JSON.stringify(trades, null, 2)}`;
     } else if (type === 'question') {
-      const { question } = await req.json();
       systemPrompt = `You are an expert trading coach. Answer questions about trading performance with specific, data-driven insights.`;
       userPrompt = `Trading data:\n${JSON.stringify(trades, null, 2)}\n\nQuestion: ${question}`;
     }

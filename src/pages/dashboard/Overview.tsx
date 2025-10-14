@@ -70,14 +70,14 @@ export const Overview = () => {
     <div className="space-y-8 animate-slide-up">
       {/* Header */}
       <div>
-        <h1 className="text-4xl font-bold mb-2">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
           Welcome back to <span className="text-gradient">Trademind</span>
         </h1>
-        <p className="text-muted-foreground">Here's your trading performance overview</p>
+        <p className="text-sm sm:text-base text-muted-foreground">Here's your trading performance overview</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatsCard
           title="Total Profit"
           value={`$${stats.totalProfit.toFixed(2)}`}
@@ -109,7 +109,7 @@ export const Overview = () => {
       </div>
 
       {/* Charts and Insights */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
           <ProfitChart />
         </div>
