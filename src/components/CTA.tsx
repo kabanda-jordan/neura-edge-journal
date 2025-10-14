@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export const CTA = () => {
   return (
@@ -19,12 +20,14 @@ export const CTA = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-            <Button 
-              size="lg" 
-              className="text-lg px-8 py-6 bg-accent hover:bg-accent/90 text-accent-foreground glow-green font-semibold"
-            >
-              Join the Beta
-            </Button>
+            <Link to="/dashboard">
+              <Button 
+                size="lg" 
+                className="text-lg px-8 py-6 bg-accent hover:bg-accent/90 text-accent-foreground glow-green font-semibold"
+              >
+                Join the Beta
+              </Button>
+            </Link>
             <Button 
               size="lg" 
               variant="outline"
