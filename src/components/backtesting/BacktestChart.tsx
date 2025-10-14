@@ -2,9 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack, TrendingUpDown, Activity } from "lucide-react";
-import { createChart, IChartApi, ISeriesApi, CandlestickData, ColorType, CandlestickSeries, IPriceLine, LineData } from 'lightweight-charts';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack, Activity } from "lucide-react";
+import { createChart, IChartApi, ISeriesApi, ColorType, CandlestickSeries, LineSeries, IPriceLine, LineData } from 'lightweight-charts';
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -204,14 +203,14 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       wickDownColor: '#ef4444',
     });
 
-    const smaSeries = chart.addSeries('Line' as any, {
+    const smaSeries = chart.addSeries(LineSeries, {
       color: '#3b82f6',
       lineWidth: 2,
       title: 'SMA',
       visible: false,
     });
 
-    const emaSeries = chart.addSeries('Line' as any, {
+    const emaSeries = chart.addSeries(LineSeries, {
       color: '#f59e0b',
       lineWidth: 2,
       title: 'EMA',
