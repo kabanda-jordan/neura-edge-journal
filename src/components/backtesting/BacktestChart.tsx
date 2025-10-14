@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack } from "lucide-react";
-import { createChart, IChartApi, ISeriesApi, CandlestickData, ColorType, CandlestickSeries, IPriceLine } from 'lightweight-charts';
+import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Target, FastForward, Rewind, SkipForward, SkipBack, TrendingUpDown, Activity } from "lucide-react";
+import { createChart, IChartApi, ISeriesApi, CandlestickData, ColorType, CandlestickSeries, IPriceLine, LineData } from 'lightweight-charts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export type PositionType = 'long' | 'short' | null;
 
@@ -87,6 +88,8 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const tpLineRef = useRef<IPriceLine | null>(null);
   const slLineRef = useRef<IPriceLine | null>(null);
+  const smaSeriesRef = useRef<any>(null);
+  const emaSeriesRef = useRef<any>(null);
   const { toast } = useToast();
 
   // Replay and trading state
@@ -106,6 +109,12 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
   // TP/SL drag state
   const [dragging, setDragging] = useState(false);
   const [dragTarget, setDragTarget] = useState<'tp' | 'sl' | null>(null);
+
+  // Indicators state
+  const [showSMA, setShowSMA] = useState(false);
+  const [smaPeriod, setSmaPeriod] = useState(20);
+  const [showEMA, setShowEMA] = useState(false);
+  const [emaPeriod, setEmaPeriod] = useState(12);
 
   const mappedSymbol = useMemo(() => {
     const s = symbol.replace(/[^a-zA-Z]/g, '').toUpperCase();
@@ -195,8 +204,24 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
       wickDownColor: '#ef4444',
     });
 
+    const smaSeries = chart.addSeries('Line' as any, {
+      color: '#3b82f6',
+      lineWidth: 2,
+      title: 'SMA',
+      visible: false,
+    });
+
+    const emaSeries = chart.addSeries('Line' as any, {
+      color: '#f59e0b',
+      lineWidth: 2,
+      title: 'EMA',
+      visible: false,
+    });
+
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
+    smaSeriesRef.current = smaSeries;
+    emaSeriesRef.current = emaSeries;
 
     // Handle resize
     const handleResize = () => {
@@ -212,6 +237,32 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     };
   }, []);
 
+  // Calculate indicators
+  const calculateSMA = (data: Candle[], period: number): LineData[] => {
+    const result: LineData[] = [];
+    for (let i = period - 1; i < data.length; i++) {
+      const sum = data.slice(i - period + 1, i + 1).reduce((acc, c) => acc + c.close, 0);
+      result.push({ time: data[i].time as any, value: sum / period });
+    }
+    return result;
+  };
+
+  const calculateEMA = (data: Candle[], period: number): LineData[] => {
+    const result: LineData[] = [];
+    const multiplier = 2 / (period + 1);
+    let ema = data.slice(0, period).reduce((acc, c) => acc + c.close, 0) / period;
+    
+    for (let i = period - 1; i < data.length; i++) {
+      if (i === period - 1) {
+        result.push({ time: data[i].time as any, value: ema });
+      } else {
+        ema = (data[i].close - ema) * multiplier + ema;
+        result.push({ time: data[i].time as any, value: ema });
+      }
+    }
+    return result;
+  };
+
   // Update chart with visible data based on idx
   useEffect(() => {
     if (!candleSeriesRef.current || data.length === 0) return;
@@ -226,12 +277,23 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     }));
     
     candleSeriesRef.current.setData(visibleData);
+
+    // Update indicators
+    if (showSMA && smaSeriesRef.current) {
+      const smaData = calculateSMA(data.slice(0, idx), smaPeriod);
+      smaSeriesRef.current.setData(smaData);
+    }
+
+    if (showEMA && emaSeriesRef.current) {
+      const emaData = calculateEMA(data.slice(0, idx), emaPeriod);
+      emaSeriesRef.current.setData(emaData);
+    }
     
     // Auto-scroll to latest candle only during playback
     if (isPlaying && chartRef.current && visibleData.length > 0) {
       chartRef.current.timeScale().scrollToPosition(3, false);
     }
-  }, [idx, data]);
+  }, [idx, data, showSMA, smaPeriod, showEMA, emaPeriod]);
 
   // Reset state on symbol/timeframe change
   useEffect(() => {
@@ -270,6 +332,16 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     };
   }, [isPlaying, speed, data.length, idx]);
 
+  // Update indicator visibility
+  useEffect(() => {
+    if (smaSeriesRef.current) {
+      smaSeriesRef.current.applyOptions({ visible: showSMA });
+    }
+    if (emaSeriesRef.current) {
+      emaSeriesRef.current.applyOptions({ visible: showEMA });
+    }
+  }, [showSMA, showEMA]);
+
   // Update TP/SL price lines on chart
   useEffect(() => {
     if (!candleSeriesRef.current) return;
@@ -285,7 +357,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
     }
 
     // Add new lines if position is active
-    if (position && tp != null) {
+    if (position && tp != null && !isNaN(tp)) {
       tpLineRef.current = candleSeriesRef.current.createPriceLine({
         price: tp,
         color: '#10b981',
@@ -295,7 +367,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
         title: 'TP',
       });
     }
-    if (position && sl != null) {
+    if (position && sl != null && !isNaN(sl)) {
       slLineRef.current = candleSeriesRef.current.createPriceLine({
         price: sl,
         color: '#ef4444',
@@ -344,9 +416,12 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
         return;
       }
       const price = series.coordinateToPrice(y);
-      if (price == null) return;
-      if (dragTarget === 'tp') setTp(price);
-      else if (dragTarget === 'sl') setSl(price);
+      if (price == null || isNaN(price)) return;
+      if (dragTarget === 'tp') {
+        setTp(price);
+      } else if (dragTarget === 'sl') {
+        setSl(price);
+      }
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -506,8 +581,9 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
 
       {/* Overlay controls inside chart area */}
       <div className="absolute inset-0 z-10 flex flex-col justify-between p-3 pointer-events-none">
-        {/* Top-left replay controls */}
-        <div className="pointer-events-auto flex items-center gap-2">
+        {/* Top-left replay and indicator controls */}
+        <div className="flex items-start gap-3">
+          <div className="pointer-events-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={decSpeed}><Rewind className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" onClick={skipBack}><SkipBack className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" onClick={togglePlay} className="min-w-[80px]">
@@ -530,6 +606,59 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ symbol, timeframe, startD
             <span className="text-xs text-muted-foreground">x</span>
           </div>
         </div>
+
+        {/* Indicators panel */}
+        <div className="pointer-events-auto bg-background/80 backdrop-blur rounded px-3 py-2 border border-border">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-semibold">Indicators:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showSMA} 
+                  onChange={(e) => setShowSMA(e.target.checked)}
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-blue-500">SMA</span>
+              </label>
+              {showSMA && (
+                <Input 
+                  type="number" 
+                  value={smaPeriod} 
+                  onChange={(e) => setSmaPeriod(parseInt(e.target.value) || 20)}
+                  className="w-16 h-6 text-xs"
+                  min="2"
+                  max="200"
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showEMA} 
+                  onChange={(e) => setShowEMA(e.target.checked)}
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-amber-500">EMA</span>
+              </label>
+              {showEMA && (
+                <Input 
+                  type="number" 
+                  value={emaPeriod} 
+                  onChange={(e) => setEmaPeriod(parseInt(e.target.value) || 12)}
+                  className="w-16 h-6 text-xs"
+                  min="2"
+                  max="200"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
         {/* Bottom-left trading controls */}
         <div className="pointer-events-auto flex items-center gap-2 flex-wrap">
