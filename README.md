@@ -1,4 +1,4 @@
-Neura-Edge-Journal
+#Neura-Edge-Journal
 
 AI-Powered Trading Journal & Analytics Engine
 Everything you wanted to know about your trading… but your spreadsheets never told you.
@@ -7,7 +7,7 @@ Neura-Edge-Journal is a lightweight, edge-deployable trading journal that brings
 
 Built for developers, traders, and fintech enthusiasts. Inspired by TradeMind, reimagined as open-source.
 
-🚀 Features
+#🚀 Features
 
 Automated Journaling: Broker API integrations + CSV/manual uploads
 
