@@ -25,7 +25,7 @@ Edge-First: Runs on Raspberry Pi, Vercel Edge, Cloudflare Workers
 
 Discord Integration: Bot for trade sharing & community alerts
 
-🛠 Quick Start
+# 🛠 Quick Start
 # Clone & install
 git clone https://github.com/yourusername/neura-edge-journal.git
 cd neura-edge-journal
@@ -38,9 +38,9 @@ npm run dev
 npm run deploy
 
 
-Live Demo: neura-edge-journal.vercel.app
+# Live Demo: neura-edge-journal.vercel.app
 
-📊 Supported Brokers
+# 📊 Supported Brokers
 Broker	Status	Auto-Import
 Interactive Brokers	✅ Live	API + CSV
 MetaTrader 4/5	✅ Live	CSV + MT4 Hook
@@ -52,13 +52,13 @@ Plan	Price	Features
 Free	$0/mo	15 trades, basic reports
 Pro	$3.99/mo	Unlimited trades + AI insights
 Enterprise	Custom	White-label + API, Crypto payments via Solana/USDC
-🛡️ Self-Hosting
+# 🛡️ Self-Hosting
 
 Perfect for privacy-focused traders.
 
 Docker Example:
 
-services:
+# services:
   app:
     image: yourusername/neura-edge-journal:latest
     ports:
@@ -67,7 +67,7 @@ services:
       - DATABASE_URL=postgresql://...
       - OPENAI_API_KEY=your-key
 
-📈 Roadmap
+# 📈 Roadmap
 
 Core analytics engine
 
@@ -81,7 +81,7 @@ Advanced backtesting
 
 NFT trade certificates
 
-⚡ Tech Stack
+# ⚡ Tech Stack
 
 Frontend: Next.js 15 + Tailwind + shadcn/ui
 
@@ -93,17 +93,17 @@ Deployment: Vercel Edge + Cloudflare Workers
 
 Broker APIs: CCXT + Broker SDKs
 
-🙌 Testimonials
+# 🙌 Testimonials
 
 "Neura-Edge-Journal turned my trading chaos into data-driven decisions. Win rate up 25%!" – Alex, Day Trader
 
 "Self-hosted on my Pi 5. Zero latency, full privacy. Game-changer." – Sarah, Algo Trader
 
-📄 License
+# 📄 License
 
 MIT – Free for personal/commercial use. See LICENSE.
 
-🤝 Contributing
+# 🤝 Contributing
 
 Fork → Clone → PR
 
