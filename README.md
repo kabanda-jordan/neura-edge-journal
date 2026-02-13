@@ -27,7 +27,7 @@ Discord Integration: Bot for trade sharing & community alerts
 
 # 🛠 Quick Start
 # Clone & install
-git clone https://github.com/yourusername/neura-edge-journal.git
+git clone https://github.com/kabanda-jordan/neura-edge-journal.git
 cd neura-edge-journal
 npm install   # or yarn/pnpm
 
@@ -60,7 +60,7 @@ Docker Example:
 
 # services:
   app:
-    image: yourusername/neura-edge-journal:latest
+    image: kabanda-jordan/neura-edge-journal:latest
     ports:
       - "3000:3000"
     environment:
